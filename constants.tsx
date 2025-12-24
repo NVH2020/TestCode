@@ -129,7 +129,7 @@ export const EXAM_CODES: Record<number, ExamCodeDefinition[]> = {
       topics: [4],
       fixedConfig: { 
         duration: 45, 
-        numMC: 6, scoreMC: 6, mcL3: 0, mcL4: 0,
+        numMC: 3, scoreMC: 6, mcL3: 0, mcL4: 0,
         numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
         numSA: 2, scoreSA: 2, saL3: 1, saL4: 1
       }
