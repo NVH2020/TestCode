@@ -51,7 +51,7 @@ export const ALL_QUESTIONS: Question[] = [
     classTag: "12.4.2",
     part: "Phần II. Câu trắc nghiệm đúng sai.",
     type: "true-false",
-    question: "Cho hàm số $f\\left( x \\right)=2x-\\sin x$. Các mệnh đề sau đây đúng hay sai?mức độ 2: f(0)=0 T; ...là một nguyên hàm T; 2+cosx F; đồng biến T",
+    question: "Cho hàm số $f\\left( x \\right)=2x-\\sin x$. Các mệnh đề sau đây đúng hay sai?",
     s: [
       { "text": "$f\\left( 0 \\right)=0$.", "a": true },
       { "text": "$F\\left( x \\right)={{x}^{2}}+\\cos x$ là một nguyên hàm của hàm số $f\\left( x \\right)$.", "a": true },
@@ -64,25 +64,12 @@ export const ALL_QUESTIONS: Question[] = [
     classTag: "12.4.3",
     part: "Phần II. Câu trắc nghiệm đúng sai.",
     type: "true-false",
-    question: "Cho tích phân $I = \\int_1^e \\frac{\\ln x}{x} \\text{d}x$. Xét các mệnh đề sau: (Mức độ 3: đổi biến T, giá trị T; Hàm số T; Nếu thay cận T",
+    question: "Cho tích phân $I = \\int_1^e \\frac{\\ln x}{x} \\text{d}x$. Xét các mệnh đề sau:",
     s: [
       { "text": "Đổi biến $t = \\ln x$ ta được $I = \\int_0^1 t \\text{d}t$.", "a": true },
       { "text": "Giá trị của $I = \\frac{1}{2}$.", "a": true },
       { "text": "Hàm số $F(x) = \\frac{\\ln^2 x}{2}$ là một nguyên hàm của $f(x) = \\frac{\\ln x}{x}$.", "a": true },
       { "text": "Nếu thay cận từ $1 \\to e^2$ thì giá trị tích phân là $2$.", "a": true }
-    ]
-  },
-  {
-    id: 18,
-    classTag: "12.4.2",
-    part: "Phần II. Câu trắc nghiệm đúng sai.",
-    type: "true-false",
-    question: "Kết quả sau đúng hay sai (Mức độ 32: 6 ; 11; 3>4; 9... 3",
-    s: [
-      { "text": "2+4=6", "a": true },
-      { "text": "6+5=11", "a": true },
-      { "text": "3>4", "a": false },
-      { "text": "9 chia hết cho 3", "a": true }
     ]
   },
 
@@ -92,15 +79,15 @@ export const ALL_QUESTIONS: Question[] = [
     classTag: "12.4.3",
     part: "Phần III. Câu trắc nghiệm trả lời ngắn",
     type: "short-answer",
-    question: "Tính giá trị của tích phân $I = \\int_0^2 (3x^2 - 2x + 1) \\text{d}x$. (mức độ 3; 6.4)",
-    a: "6.4"
+    question: "Tính giá trị của tích phân $I = \\int_0^2 (3x^2 - 2x + 1) \\text{d}x$.",
+    a: "6"
   },
   {
     id: 25,
     classTag: "12.4.4",
     part: "Phần III. Câu trắc nghiệm trả lời ngắn",
     type: "short-answer",
-    question: "Tính tích phân $K = \\int_0^1 xe^x \\text{d}x$. (Mức độ 4; 1)",
+    question: "Tính tích phân $K = \\int_0^1 xe^x \\text{d}x$. (Kết quả là một số nguyên)",
     a: "1"
   }
 ];

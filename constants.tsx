@@ -11,8 +11,13 @@ export const API_ROUTING: Record<string, string> = {
   "0987654321": "https://script.google.com/macros/s/URL_GIAO_VIEN_B/exec"
 };
 
+// Các liên kết đăng ký
+export const REGISTER_LINKS = {
+  MATH: "https://zalo.me/0988948882",
+  APP: "https://zalo.me/0988948882"
+};
+
 export const TOPICS_DATA: Record<number, Topic[]> = {
-  // ... (giữ nguyên các khối 9, 10, 11)
   9: [
     { id: 1, name: "1. Phương trình và hệ phương trình bậc nhất" },
     { id: 2, name: "2. Phương trình bậc hai một ẩn số" },
@@ -73,99 +78,22 @@ export const EXAM_CODES: Record<number, ExamCodeDefinition[]> = {
       name: "Kiểm tra Mệnh đề, Tập hợp", 
       topics: [1],
       fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
+        duration: 45, 
+        numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
+        numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
+        numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
+      }
     },
     { 
       code: "Chuyen_De_2.10", 
-      name: "Kiểm tra BPT và Hệ BPT bậc nhất", // Đã sửa tên cho khớp Topic 2
+      name: "Kiểm tra BPT và Hệ BPT bậc nhất", 
       topics: [2],
       fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_3.10", 
-      name: "Kiểm tra Hàm số bậc hai", // Đã sửa tên cho khớp Topic 3
-      topics: [3],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_4.10", 
-      name: "Kiểm tra Hệ thức lượng tam giác", // Đã sửa tên cho khớp Topic 4
-      topics: [4],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_5.10", 
-      name: "Kiểm tra Vectơ", // Đã sửa tên cho khớp Topic 5
-      topics: [5],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1 
-}
-    },
-    { 
-      code: "Chuyen_De_6.10", 
-      name: "Kiểm tra Thống kê", // Đã sửa tên cho khớp Topic 6
-      topics: [6],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_7.10", 
-      name: "Kiểm tra Hình học tọa độ phẳng", // Đã sửa tên cho khớp Topic 7
-      topics: [7],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_8.10", 
-      name: "Kiểm tra Đại số tổ hợp", // Đã sửa tên cho khớp Topic 8
-      topics: [8],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_9.10", 
-      name: "Kiểm tra Xác suất cổ điển", // Đã sửa tên cho khớp Topic 9
-      topics: [9],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
+        duration: 45, 
+        numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
+        numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
+        numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
+      }
     }
   ],
   11: [
@@ -175,225 +103,36 @@ numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
       name: "Kiểm tra chương lượng giác", 
       topics: [1],
       fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_2.11", 
-      name: "Kiểm tra dãy số, csc, csn", 
-      topics: [2],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_3.11", 
-      name: "Kiểm tra mẫu số liệu", 
-      topics: [3],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_4.11", 
-      name: "Kiểm tra quan hệ song song", 
-      topics: [4],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_5.11", 
-      name: "Kiểm tra giới hạn dãy số", 
-      topics: [5],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_6.11", 
-      name: "Kiểm tra giới hạn hàm số, HS liên tục", 
-      topics: [6],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_7.11", 
-      name: "Kiểm tra hàm số mũ, logarit", 
-      topics: [7],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-
-}
-    },
-    { 
-      code: "Chuyen_De_8.11", 
-      name: "Kiểm tra quan hệ vuông góc", 
-      topics: [8],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_9.11", 
-      name: "Kiểm tra quy tắc tính đạo hàm", 
-      topics: [9],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_10.11", 
-      name: "Kiểm tra quy tắc tính xác suất", 
-      topics: [10],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Đề luyện GHK1.11", 
-      name: "Tổng ôn GHK1", 
-      topics: [1, 2, 3, 4],
-      fixedConfig: { 
-duration: 90, 
-numMC: 12, scoreMC: 3, mcL3: 0, mcL4: 0,
-numTF: 4, scoreTF: 4, tfL3: 1, tfL4: 0,
-numSA: 6, scoreSA: 3, saL3: 2, saL4: 1
-}
-    },
-    { 
-      code: "Đề luyện CHK1.11", 
-      name: "Tổng ôn CHK1", 
-      topics: [1, 2, 3, 4, 5, 6],
-      fixedConfig: { 
-duration: 90, 
-numMC: 12, scoreMC: 3, mcL3: 0, mcL4: 0,
-numTF: 4, scoreTF: 4, tfL3: 1, tfL4: 0,
-numSA: 6, scoreSA: 3, saL3: 2, saL4: 1
-}
-    },
-    { 
-      code: "Đề luyện GHK2.11", 
-      name: "Tổng ôn GHK2", 
-      topics: [7, 8], // Đã sửa logic: GHK2 thường thi Mũ/Logarit và Vuông góc
-      fixedConfig: { 
-duration: 90, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 4, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 6, scoreSA: 2, saL3: 2, saL4: 1
-}
-    },
-    { 
-      code: "Đề luyện CHK2.11", 
-      name: "Tổng ôn CHK2", 
-      topics: [7, 8, 9, 10], // Đã sửa logic: CHK2 thi hết nội dung kỳ 2
-      fixedConfig: { 
-duration: 90, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 4, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 6, scoreSA: 2, saL3: 2, saL4: 1
- 
-}
+        duration: 45, 
+        numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
+        numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
+        numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
+      }
     }
   ],
   12: [
     { code: "Tu_Do_K12", name: "Luyện tập tự do (Học sinh tự chọn)", topics: 'manual' },
     { 
       code: "Chuyen_De_1.12", 
-      name: "Kiểm tra khảo sát hàm số", // Đã sửa lỗi chính tả "hàm sốc"
+      name: "Kiểm tra khảo sát hàm số", 
       topics: [1],
       fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_2.12", 
-      name: "Kiểm tra Vectơ trong không gian", 
-      topics: [2],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_3.12", 
-      name: "Kiểm tra mẫu số liệu", 
-      topics: [3],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 2, saL4: 0
-}
+        duration: 45, 
+        numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
+        numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
+        numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
+      }
     },
     { 
       code: "Chuyen_De_4.12", 
       name: "Kiểm tra nguyên hàm, tích phân", 
       topics: [4],
       fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_5.12", 
-      name: "Kiểm tra hình tọa độ Oxyz", 
-      topics: [5],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
-}
-    },
-    { 
-      code: "Chuyen_De_6.12", 
-      name: "Kiểm tra xác suất có điều kiện", 
-      topics: [6],
-      fixedConfig: { 
-duration: 45, 
-numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
-numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
-numSA: 4, scoreSA: 2, saL3: 1, saL4: 1 
-}
+        duration: 45, 
+        numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
+        numTF: 2, scoreTF: 2, tfL3: 1, tfL4: 0,
+        numSA: 4, scoreSA: 2, saL3: 1, saL4: 1
+      }
     }
   ]
 };

@@ -4,7 +4,7 @@ import {
   Question, ExamConfig, StudentInfo, ExamState, ExamCodeDefinition, SheetResult 
 } from './types.ts';
 import { 
-  GRADES, TOPICS_DATA, CLASSES_LIST, MAX_VIOLATIONS, EXAM_CODES, DEFAULT_API_URL, API_ROUTING 
+  GRADES, TOPICS_DATA, CLASSES_LIST, MAX_VIOLATIONS, EXAM_CODES, DEFAULT_API_URL, API_ROUTING, REGISTER_LINKS 
 } from './constants.tsx';
 import { generateExam, calculateScore } from './services/examEngine.ts';
 import MathText from './components/MathText.tsx';
@@ -88,8 +88,6 @@ const App: React.FC = () => {
     setLoading(true);
     try {
       const url = `${activeApiUrl}?action=changePass&account=${loginForm.account}&oldPass=${changePassForm.oldPass}&newPass=${changePassForm.newPass}`;
-      // Lưu ý: Thường Google Script POST sẽ dùng fetch(url, {method: 'POST'}) hoặc params.
-      // Ở đây giả định script xử lý qua GET action để đơn giản hóa đồng bộ với các hàm cũ.
       const response = await fetch(url);
       const data = await response.json();
       if (data.status === 'success') {
@@ -145,16 +143,24 @@ const App: React.FC = () => {
   }, [step, examState.isFinished]);
 
   const verifySBD = async () => {
-    // Nếu đã đăng nhập thì đã được xác thực
     if (student.isLoggedIn) return;
-
     if (!student.idNumber.trim() || !student.phoneNumber) { alert("Thiếu SBD hoặc SĐT!"); return; }
     setLoading(true);
     try {
       const url = `${activeApiUrl}?action=checkSBD&sbd=${student.idNumber.trim()}&code=${student.examCode}`;
       const response = await fetch(url);
       const data = await response.json();
+      
       if (data.status === 'success') {
+        // KIỂM TRA BẮT BUỘC ĐĂNG NHẬP:
+        // Nếu SBD này đã có taikhoanapp (hasAccount === true từ server) mà chưa login
+        if (data.hasAccount) {
+          alert("SBD này đã có tài khoản. Bạn bắt buộc phải ĐĂNG NHẬP để thi mã đề này!");
+          setStudent(prev => ({ ...prev, isVerified: false }));
+          setShowLoginModal(true);
+          return;
+        }
+
         if (data.limitReached) { alert("Hết lượt làm bài!"); return; }
         setStudent(prev => ({ 
           ...prev, 
@@ -177,7 +183,6 @@ const App: React.FC = () => {
         numTF: fc.numTF, scoreTF: fc.scoreTF, tfL3: fc.tfL3 || 0, tfL4: fc.tfL4 || 0,
         numSA: fc.numSA, scoreSA: fc.scoreSA, saL3: fc.saL3 || 0, saL4: fc.saL4 || 0
       });
-      // Nếu không login, bắt xác thực lại SBD. Nếu đã login thì giữ nguyên.
       if (!student.isLoggedIn) {
         setStudent(prev => ({ ...prev, isVerified: false, idNumber: '' }));
       }
@@ -191,7 +196,10 @@ const App: React.FC = () => {
   };
 
   const handleStartExam = () => {
-    if (!student.fullName || (isFixedExam && !student.isVerified)) { alert("Thông tin chưa chuẩn!"); return; }
+    if (!student.fullName || (isFixedExam && !student.isVerified)) { 
+      alert("Vui lòng xác thực SBD hoặc Đăng nhập trước khi bắt đầu!"); 
+      return; 
+    }
     if (config.topics.length === 0) { alert("Chọn chuyên đề!"); return; }
     const generated = generateExam(config);
     if (generated.length === 0) { alert("Không đủ câu hỏi!"); return; }
@@ -218,20 +226,30 @@ const App: React.FC = () => {
       <header className="text-center space-y-4">
         <h1 className="text-3xl font-black text-teal-600 uppercase tracking-[0.2em] leading-tight">Tạo Đề Kiểm Tra Từ Ngân Hàng</h1>
         <p className="text-slate-500 font-bold text-sm tracking-wide">Tác giả: Nguyễn Văn Hà - THPT Yên Dũng số 2 - Bắc Ninh</p>
-        <div className="flex flex-wrap justify-center gap-3">
-          <button onClick={() => setShowScoreModal(true)} className="px-8 py-3 bg-white border-2 border-teal-600 text-teal-700 rounded-full font-black shadow-lg hover:bg-teal-50 transition-colors uppercase text-[10px] tracking-widest">XEM ĐIỂM</button>
+        
+        {/* KHÔI PHỤC CÁC NÚT ĐĂNG KÝ VÀ TIỆN ÍCH */}
+        <div className="flex flex-wrap justify-center gap-3 mt-4">
+          <button onClick={() => setShowScoreModal(true)} className="px-6 py-3 bg-white border-2 border-teal-600 text-teal-700 rounded-full font-black shadow-lg hover:bg-teal-50 transition-colors uppercase text-[10px] tracking-widest">XEM ĐIỂM</button>
           
+          <a href={REGISTER_LINKS.MATH} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-blue-600 text-white border-2 border-blue-600 rounded-full font-black shadow-lg hover:bg-blue-700 transition-colors uppercase text-[10px] tracking-widest flex items-center gap-2">
+            ĐĂNG KÝ HỌC TOÁN
+          </a>
+          <a href={REGISTER_LINKS.APP} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-orange-500 text-white border-2 border-orange-500 rounded-full font-black shadow-lg hover:bg-orange-600 transition-colors uppercase text-[10px] tracking-widest flex items-center gap-2">
+            ĐĂNG KÝ SỬ DỤNG APP
+          </a>
+
           {student.isLoggedIn ? (
             <div className="flex gap-2">
-               <button onClick={() => setShowChangePassModal(true)} className="px-8 py-3 bg-teal-50 text-teal-700 border-2 border-teal-100 rounded-full font-black shadow-lg hover:bg-teal-100 transition-colors uppercase text-[10px] tracking-widest">ĐỔI MẬT KHẨU</button>
-               <button onClick={() => setStudent({...student, isLoggedIn: false, fullName: '', idNumber: '', isVerified: false})} className="px-8 py-3 bg-rose-50 text-rose-700 border-2 border-rose-100 rounded-full font-black shadow-lg hover:bg-rose-100 transition-colors uppercase text-[10px] tracking-widest">ĐĂNG XUẤT</button>
+               <button onClick={() => setShowChangePassModal(true)} className="px-6 py-3 bg-teal-50 text-teal-700 border-2 border-teal-100 rounded-full font-black shadow-lg hover:bg-teal-100 transition-colors uppercase text-[10px] tracking-widest">ĐỔI MẬT KHẨU</button>
+               <button onClick={() => setStudent({...student, isLoggedIn: false, fullName: '', idNumber: '', isVerified: false})} className="px-6 py-3 bg-rose-50 text-rose-700 border-2 border-rose-100 rounded-full font-black shadow-lg hover:bg-rose-100 transition-colors uppercase text-[10px] tracking-widest">ĐĂNG XUẤT</button>
             </div>
           ) : (
-            <button onClick={() => setShowLoginModal(true)} className="px-8 py-3 bg-teal-600 text-white border-2 border-teal-600 rounded-full font-black shadow-lg hover:bg-teal-700 transition-colors uppercase text-[10px] tracking-widest">ĐĂNG NHẬP</button>
+            <button onClick={() => setShowLoginModal(true)} className="px-6 py-3 bg-teal-600 text-white border-2 border-teal-600 rounded-full font-black shadow-lg hover:bg-teal-700 transition-colors uppercase text-[10px] tracking-widest">ĐĂNG NHẬP</button>
           )}
         </div>
         {student.isLoggedIn && <p className="text-teal-600 font-black text-xs">Xin chào, {student.fullName} ({student.idNumber})</p>}
       </header>
+
       <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl border space-y-10">
         <div className="space-y-4">
           <label className="text-xl font-black text-slate-700 flex items-center gap-2"><span className="w-2 h-7 bg-teal-500 rounded-full"></span>Khối lớp</label>
@@ -278,19 +296,19 @@ const App: React.FC = () => {
           {student.isLoggedIn ? (
             <div className="space-y-4">
               <div className="p-4 bg-teal-50 rounded-xl border border-teal-100">
-                <p className="text-[10px] font-black text-teal-600 uppercase mb-1">ID Bản Quyền</p>
+                <p className="text-[10px] font-black text-teal-600 uppercase mb-1">ID Bản Quyền (Của Giáo Viên)</p>
                 <p className="font-black text-slate-800">{student.phoneNumber}</p>
               </div>
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Họ tên & Lớp</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Học sinh (Đã đăng nhập)</p>
                 <p className="font-black text-slate-800">{student.fullName} - {student.studentClass}</p>
-                <p className="text-xs font-bold text-slate-500 mt-1">SBD: {student.idNumber}</p>
+                <p className="text-xs font-bold text-slate-500 mt-1 uppercase">SBD: {student.idNumber}</p>
               </div>
             </div>
           ) : (
             <>
               <div className="space-y-1">
-                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ID bản quyền (Nhận kết quả)</label>
+                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ID bản quyền (ID Giáo viên)</label>
                  <input type="tel" value={student.phoneNumber} onChange={e => setStudent({...student, phoneNumber: e.target.value})} className="w-full p-4 rounded-xl border-2 font-bold outline-none focus:border-teal-500" placeholder="VD: 0912345678" />
               </div>
               {isFixedExam ? (
@@ -312,12 +330,13 @@ const App: React.FC = () => {
             </>
           )}
 
-          {student.isVerified && !student.isLoggedIn && <div className="p-4 bg-teal-50 rounded-xl font-black text-teal-800 border border-teal-100 animate-fadeIn">✓ {student.fullName} - {student.studentClass}</div>}
+          {student.isVerified && !student.isLoggedIn && <div className="p-4 bg-teal-50 rounded-xl font-black text-teal-800 border border-teal-100 animate-fadeIn flex items-center gap-2"><span>✓</span> {student.fullName} - {student.studentClass}</div>}
           <button onClick={handleStartExam} className="w-full py-5 bg-teal-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-teal-700 active:scale-95 transition-all">Bắt đầu thi</button>
         </div>
         
         <div className="lg:col-span-2 bg-white p-8 rounded-[2rem] shadow-xl border space-y-6">
           <h2 className="text-xl font-black text-slate-800 flex items-center gap-2"><span className="w-1.5 h-6 bg-teal-500 rounded-full"></span>Cấu hình đề: {student.examCode}</h2>
+          {/* (Giữ nguyên phần cấu hình đề...) */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-100">
              <div className="space-y-1">
                 <div className="text-[10px] font-black text-teal-600 uppercase tracking-tighter">Phần I (Trắc nghiệm)</div>
@@ -424,7 +443,6 @@ const App: React.FC = () => {
 
   const renderResult = () => {
     const score = calculateScore(questions, examState.answers, config);
-    
     return (
       <div className="max-w-2xl mx-auto p-6 pt-16 animate-fadeIn pb-20">
         <div className="bg-white rounded-[3.5rem] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.1)] overflow-hidden border border-slate-50">
@@ -446,20 +464,9 @@ const App: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              <button 
-                onClick={() => setStep('review')}
-                className="w-full py-5 bg-white border-2 border-teal-500 rounded-2xl font-black text-teal-700 flex items-center justify-center gap-3 shadow-md hover:bg-teal-50 transition-all active:scale-95 group"
-              >
-                <span className="uppercase tracking-widest text-sm">Xem lại đề thi</span>
-              </button>
-              
-              <button 
-                onClick={() => window.location.reload()} 
-                className="w-full py-6 bg-teal-600 text-white rounded-3xl font-black text-xl uppercase shadow-2xl shadow-teal-100 hover:bg-teal-700 transition-all active:scale-95 flex items-center justify-center gap-3"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
+              <button onClick={() => setStep('review')} className="w-full py-5 bg-white border-2 border-teal-500 rounded-2xl font-black text-teal-700 flex items-center justify-center gap-3 shadow-md hover:bg-teal-50 transition-all active:scale-95 uppercase tracking-widest text-sm">Xem lại đề thi</button>
+              <button onClick={() => window.location.reload()} className="w-full py-6 bg-teal-600 text-white rounded-3xl font-black text-xl uppercase shadow-2xl shadow-teal-100 hover:bg-teal-700 transition-all active:scale-95 flex items-center justify-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
                 Về trang chủ
               </button>
             </div>
@@ -485,7 +492,6 @@ const App: React.FC = () => {
                 <span className="text-xs font-black text-teal-600 uppercase bg-teal-50 px-3 py-1 rounded-full">{q.part}</span>
               </div>
               <MathText content={q.question} className="text-xl font-bold text-slate-800" />
-              
               {q.type === 'mcq' && (
                 <div className="grid gap-3">
                   {q.o?.map((opt, i) => {
@@ -503,7 +509,6 @@ const App: React.FC = () => {
                   })}
                 </div>
               )}
-
               {q.type === 'true-false' && (
                 <div className="space-y-3">
                   {q.s?.map((item, i) => {
@@ -521,7 +526,6 @@ const App: React.FC = () => {
                   })}
                 </div>
               )}
-
               {q.type === 'short-answer' && (
                 <div className="p-6 bg-slate-50 rounded-2xl space-y-2">
                    <p className="text-xs font-black text-slate-400 uppercase">Đáp án của bạn: <span className="text-teal-700 text-lg ml-2">{userAns || "Trống"}</span></p>
@@ -548,12 +552,13 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-md shadow-2xl border relative">
              <button onClick={() => setShowLoginModal(false)} className="absolute top-6 right-6 text-slate-300 hover:text-slate-600 text-2xl font-black">✕</button>
-             <h3 className="text-2xl font-black text-slate-800 uppercase tracking-widest text-center mb-8">Đăng nhập App</h3>
+             <h3 className="text-2xl font-black text-slate-800 uppercase tracking-widest text-center mb-8">Đăng nhập tài khoản học sinh</h3>
              <div className="space-y-4">
-                <input type="tel" placeholder="ID Bản Quyền" value={loginForm.idBanQuyen} onChange={e => setLoginForm({...loginForm, idBanQuyen: e.target.value})} className="w-full p-4 border-2 rounded-2xl outline-none focus:border-teal-500 font-bold" />
-                <input type="text" placeholder="Tài khoản (Số điện thoại)" value={loginForm.account} onChange={e => setLoginForm({...loginForm, account: e.target.value})} className="w-full p-4 border-2 rounded-2xl outline-none focus:border-teal-500 font-bold" />
-                <input type="password" placeholder="Mật khẩu" value={loginForm.pass} onChange={e => setLoginForm({...loginForm, pass: e.target.value})} className="w-full p-4 border-2 rounded-2xl outline-none focus:border-teal-500 font-bold" />
-                <button onClick={handleLogin} disabled={loading} className="w-full py-5 bg-teal-600 text-white rounded-2xl font-black uppercase shadow-xl hover:bg-teal-700 transition-all">{loading ? "Đang xử lý..." : "Đăng nhập"}</button>
+                <input type="tel" placeholder="ID Bản Quyền (Của Giáo Viên)" value={loginForm.idBanQuyen} onChange={e => setLoginForm({...loginForm, idBanQuyen: e.target.value})} className="w-full p-4 border-2 rounded-2xl outline-none focus:border-teal-500 font-bold" />
+                <input type="text" placeholder="Tài khoản (SĐT học sinh - Cột G)" value={loginForm.account} onChange={e => setLoginForm({...loginForm, account: e.target.value})} className="w-full p-4 border-2 rounded-2xl outline-none focus:border-teal-500 font-bold" />
+                <input type="password" placeholder="Mật khẩu (Cột H)" value={loginForm.pass} onChange={e => setLoginForm({...loginForm, pass: e.target.value})} className="w-full p-4 border-2 rounded-2xl outline-none focus:border-teal-500 font-bold" />
+                <button onClick={handleLogin} disabled={loading} className="w-full py-5 bg-teal-600 text-white rounded-2xl font-black uppercase shadow-xl hover:bg-teal-700 transition-all">{loading ? "Đang kiểm tra..." : "Đăng nhập"}</button>
+                <p className="text-[10px] text-slate-400 text-center uppercase tracking-widest font-bold">Lưu ý: Tài khoản do Giáo viên quản lý cấp</p>
              </div>
           </div>
         </div>
@@ -564,11 +569,11 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-md shadow-2xl border relative">
              <button onClick={() => setShowChangePassModal(false)} className="absolute top-6 right-6 text-slate-300 hover:text-slate-600 text-2xl font-black">✕</button>
-             <h3 className="text-2xl font-black text-slate-800 uppercase tracking-widest text-center mb-8">Đổi mật khẩu</h3>
+             <h3 className="text-2xl font-black text-slate-800 uppercase tracking-widest text-center mb-8">Cập nhật mật khẩu mới</h3>
              <div className="space-y-4">
-                <input type="password" placeholder="Mật khẩu cũ" value={changePassForm.oldPass} onChange={e => setChangePassForm({...changePassForm, oldPass: e.target.value})} className="w-full p-4 border-2 rounded-2xl outline-none focus:border-teal-500 font-bold" />
-                <input type="password" placeholder="Mật khẩu mới" value={changePassForm.newPass} onChange={e => setChangePassForm({...changePassForm, newPass: e.target.value})} className="w-full p-4 border-2 rounded-2xl outline-none focus:border-teal-500 font-bold" />
-                <button onClick={handleChangePass} disabled={loading} className="w-full py-5 bg-teal-600 text-white rounded-2xl font-black uppercase shadow-xl hover:bg-teal-700 transition-all">{loading ? "Đang xử lý..." : "Cập nhật"}</button>
+                <input type="password" placeholder="Mật khẩu hiện tại" value={changePassForm.oldPass} onChange={e => setChangePassForm({...changePassForm, oldPass: e.target.value})} className="w-full p-4 border-2 rounded-2xl outline-none focus:border-teal-500 font-bold" />
+                <input type="password" placeholder="Mật khẩu mới mong muốn" value={changePassForm.newPass} onChange={e => setChangePassForm({...changePassForm, newPass: e.target.value})} className="w-full p-4 border-2 rounded-2xl outline-none focus:border-teal-500 font-bold" />
+                <button onClick={handleChangePass} disabled={loading} className="w-full py-5 bg-teal-600 text-white rounded-2xl font-black uppercase shadow-xl hover:bg-teal-700 transition-all">{loading ? "Đang lưu..." : "Đổi mật khẩu"}</button>
              </div>
           </div>
         </div>
@@ -576,19 +581,12 @@ const App: React.FC = () => {
 
       {showScoreModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-md shadow-[0_0_100px_rgba(0,0,0,0.1)] relative border border-slate-50">
-            <button onClick={() => setShowScoreModal(false)} className="absolute top-6 right-6 text-slate-300 hover:text-slate-600 transition-colors text-2xl font-black">✕</button>
+          <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-md shadow-2xl relative border border-slate-50">
+            <button onClick={() => setShowScoreModal(false)} className="absolute top-6 right-6 text-slate-300 hover:text-slate-600 text-2xl font-black">✕</button>
             <div className="text-center space-y-6">
-               <div className="w-20 h-20 bg-teal-50 text-teal-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                  </svg>
-               </div>
                <h3 className="text-2xl font-black text-slate-800 uppercase tracking-widest">Tra cứu điểm</h3>
-               <p className="text-slate-500 font-medium">ID bản quyền</p>
                <input type="tel" value={teacherPhoneForScore} onChange={e => setTeacherPhoneForScore(e.target.value)}
-                 className="w-full p-6 rounded-2xl border-2 border-slate-100 mb-2 font-black text-center text-2xl outline-none focus:border-teal-500 shadow-sm" placeholder="ID bản quyền" />
+                 className="w-full p-6 rounded-2xl border-2 border-slate-100 font-black text-center text-2xl outline-none focus:border-teal-500 shadow-sm" placeholder="ID bản quyền" />
                <button onClick={handleViewScoreRedirect} className="w-full py-5 bg-teal-600 text-white rounded-2xl font-black shadow-xl hover:bg-teal-700 transition-all uppercase tracking-widest">Truy cập dữ liệu</button>
             </div>
           </div>
