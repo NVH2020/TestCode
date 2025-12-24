@@ -13,8 +13,8 @@ export const API_ROUTING: Record<string, string> = {
 
 // Các liên kết đăng ký
 export const REGISTER_LINKS = {
-  MATH: "https://zalo.me/0988948882",
-  APP: "https://zalo.me/0988948882"
+  MATH: "https://admintoanhoc.vercel.app/",
+  APP: "https://forms.gle/fzE1p7DGfrwG7KMz8"
 };
 
 export const TOPICS_DATA: Record<number, Topic[]> = {
