@@ -11,8 +11,8 @@ export const API_ROUTING: Record<string, string> = {
 };
 
 export const REGISTER_LINKS = {
-  MATH: "https://forms.gle/wQfqisy2TzFRMzsu6", // Link Đăng ký học toán của bạn
-  APP: "https://admintoanhoc.vercel.app/"   // Link Đăng ký sử dụng App của bạn
+  MATH: "https://admintoanhoc.vercel.app/", // Link Đăng ký học toán của bạn
+  APP: "https://forms.gle/wQfqisy2TzFRMzsu6"   // Link Đăng ký sử dụng App của bạn 
 };
 
 export const TOPICS_DATA: Record<number, Topic[]> = {
