@@ -35,7 +35,8 @@ export interface ExamConfig {
 export interface ExamCodeDefinition {
   code: string;
   name: string;
-  topics: number[] | 'manual';
+  // Fix: Added 'matrix' to allow matrix-based exam configurations and resolve comparison errors
+  topics: number[] | 'manual' | 'matrix';
   fixedConfig?: {
     duration: number;
     numMC: number;

@@ -11,8 +11,8 @@ export const API_ROUTING: Record<string, string> = {
 };
 
 export const REGISTER_LINKS = {
-  MATH: "https://admintoanhoc.vercel.app/", // Link Đăng ký học toán của bạn
-  APP: "https://forms.gle/wQfqisy2TzFRMzsu6"   // Link Đăng ký sử dụng App của bạn 
+  MATH: "https://admintoanhoc.vercel.app/", 
+  APP: "https://forms.gle/wQfqisy2TzFRMzsu6"
 };
 
 export const TOPICS_DATA: Record<number, Topic[]> = {
@@ -25,19 +25,19 @@ export const TOPICS_DATA: Record<number, Topic[]> = {
 export const EXAM_CODES: Record<number, ExamCodeDefinition[]> = {
   9: [
     { code: "Tu_Do_K9", name: "Luyện tập tự do", topics: 'manual' },
-    { code: "KT9-15P", name: "Kiểm tra 15p", topics: [1], fixedConfig: { duration: 15, numMC: 10, scoreMC: 10, numTF: 0, scoreTF: 0, numSA: 0, scoreSA: 0 } }
+    { code: "KT9-15P", name: "Kiểm tra 15p", topics: 'matrix' }
   ],
   10: [
     { code: "Tu_Do_K10", name: "Luyện tập tự do", topics: 'manual' },
-    { code: "KT10-45P", name: "Kiểm tra 45p", topics: [1], fixedConfig: { duration: 45, numMC: 12, scoreMC: 6, numTF: 2, scoreTF: 2, numSA: 4, scoreSA: 2 } }
+    { code: "KT10-45P", name: "Kiểm tra 45p", topics: 'matrix' }
   ],
   11: [
     { code: "Tu_Do_K11", name: "Luyện tập tự do", topics: 'manual' },
-    { code: "KT11-45P", name: "Kiểm tra 45p", topics: [1], fixedConfig: { duration: 45, numMC: 12, scoreMC: 6, numTF: 2, scoreTF: 2, numSA: 4, scoreSA: 2 } }
+    { code: "KT11-45P", name: "Kiểm tra 45p", topics: 'matrix' }
   ],
   12: [
     { code: "Tu_Do_K12", name: "Luyện tập tự do", topics: 'manual' },
-    { code: "KT12-45P", name: "Kiểm tra 45p", topics: [1], fixedConfig: { duration: 45, numMC: 12, scoreMC: 6, numTF: 2, scoreTF: 2, numSA: 4, scoreSA: 2 } }
+    { code: "KT12-45P", name: "Kiểm tra 45p", topics: 'matrix' }
   ]
 };
 
