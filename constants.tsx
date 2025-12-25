@@ -1,9 +1,17 @@
 
 import { Topic, ExamCodeDefinition } from './types';
-
 export const GRADES = [9, 10, 11, 12];
 
-export const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbyymWWWpZ1JgAorl34w8TIdTE1_lHK7VcJ0PzXCY-au44EAY_OfZuOHfLeN4uYHFKCR/exec";
+// 1. LINK MẶC ĐỊNH (Dùng khi không tìm thấy ID)
+export const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxxxx.../exec"; 
+
+// 2. CẤU HÌNH ĐA LUỒNG (QUAN TRỌNG): Mapping ID -> Link Web App riêng
+// Bạn điền ID bản quyền vào bên trái, Link Web App GAS tương ứng vào bên phải
+export const API_ROUTING: Record<string, string> = {
+  "GV_HA_BACNINH": "https://script.google.com/macros/s/AKfycbzPin0LbYlG0pTrhnmArHT43nVBIjdH5YXqjsjjyXcT4oPltRDCkoP5TNlKdbFsSPk1/exec",
+  "GV_NAM_HANOI": "https://script.google.com/macros/s/AKfycbwd...khac.../exec",
+  // Thêm các giáo viên khác vào đây...
+};
 
 export const REGISTER_LINKS = {
   MATH: "https://admintoanhoc.vercel.app/", 
