@@ -123,31 +123,79 @@ const App: React.FC = () => {
     }
   };
 
-  const handleEntryNext = async () => {
-    if (!student.examCode) { alert("Chọn mã đề!"); return; }
+ // ... imports
+
+  // --- LOGIC VÀO THI MA TRẬN (Sửa đổi) ---
+  const handleStartMatrixExam = async () => {
+    if (!user.idnumber || !user.sbd || !user.account || !matrixCode) {
+        return alert("Vui lòng nhập đầy đủ thông tin và Mã đề!");
+    }
     
-    if (isMatrixExam) {
-      setLoading(true);
-      try {
-        const url = `${DEFAULT_API_URL}?action=getMatrix&code=${student.examCode}`;
-        const res = await fetch(url);
-        const data = await res.json();
+    setLoading(true);
+    try {
+      // 1. Check User + Limit (Số lần làm bài)
+      // Gửi kèm code (mã đề) để Backend đếm số lần đã thi trong sheet ketqua
+      const params = `action=checkUserInfo&idnumber=${user.idnumber}&sbd=${user.sbd}&account=${user.account}&code=${matrixCode}`;
+      const check = await callGAS(params);
+      
+      if (check.status === 'success') {
+        // Cập nhật info user (Lấy limittab từ sheet về để dùng cho chống gian lận)
+        const userInfo = { 
+            ...user, 
+            name: check.name, 
+            class: check.class, 
+            limit: check.limit,       // Số lần làm tối đa (chỉ để hiển thị)
+            limittab: check.limittab  // Số lần chuyển tab tối đa (quan trọng)
+        };
+        setUser(userInfo);
+
+        // 2. Nếu check OK (chưa quá limit), mới lấy đề
+        const data = await callGAS(`action=getExamData&code=${matrixCode}`);
         if (data.status === 'success') {
-          setRemoteMatrix(data.matrix);
-          setStep('info_setup');
+          const qs = generateMatrixExam(data.matrix);
+          setQuestions(qs);
+          setTimeLeft(data.matrix.duration * 60);
+          
+          // Reset vi phạm về 0 khi bắt đầu thi mới
+          setTabViolations(0);
+          setStep('exam');
         } else {
           alert(data.message);
         }
-      } catch {
-        alert("Không thể tải ma trận đề!");
-      } finally {
-        setLoading(false);
+      } else {
+        // Lỗi do sai info hoặc quá số lần làm bài (limit)
+        alert(check.message);
       }
-    } else {
-      setRemoteMatrix(null);
-      setStep('info_setup');
+    } catch (e) {
+      alert("Lỗi kết nối Server!");
+    } finally {
+      setLoading(false);
     }
   };
+
+  // --- ANTI-CHEAT TAB (Dùng biến limittab) ---
+  useEffect(() => {
+    if (step !== 'exam') return;
+    
+    const handleVis = () => {
+      if (document.hidden) {
+        const v = tabViolations + 1;
+        setTabViolations(v);
+        
+        // Sử dụng user.limittab lấy từ Google Sheet
+        const maxTabs = user.limittab || 3; // Mặc định 3 nếu lỗi
+        
+        alert(`CẢNH BÁO: Bạn đã rời trang thi! (${v}/${maxTabs})`);
+        
+        if (v >= maxTabs) {
+           alert("Vi phạm quy chế thi (Chuyển tab quá giới hạn). Hệ thống tự động nộp bài!");
+           submitExam();
+        }
+      }
+    };    
+    document.addEventListener("visibilitychange", handleVis);
+    return () => document.removeEventListener("visibilitychange", handleVis);
+  }, [step, tabViolations, user.limittab]); // Dependency quan trọng
 
   const handleStartExam = () => {
     if (isMatrixExam && !student.isVerified && !student.isLoggedIn) {
