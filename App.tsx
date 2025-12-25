@@ -515,4 +515,178 @@ const ExamInterface = ({ questions, answers, setAnswers, currentIdx, setIdx, tim
        </header>
        
        <div className="flex-1 max-w-5xl mx-auto w-full">
-          <div className="bg-white p-6 md:p-10
+          <div className="bg-white p-6 md:p-10 rounded-[2rem] shadow-xl border border-slate-100 relative overflow-hidden min-h-[400px]">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-500"></div>
+            <div className="flex justify-between mb-6">
+                <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">{q.type === 'mcq' ? 'Trắc nghiệm' : q.type === 'true-false' ? 'Đúng / Sai' : 'Điền đáp án'}</span>
+                <span className="text-[10px] font-black text-teal-600 uppercase tracking-widest">ID: {q.id}</span>
+            </div>
+            
+            <div className="mb-10 text-lg md:text-xl text-slate-800 font-medium leading-relaxed">
+               <MathText content={q.question} />
+            </div>
+            
+            {/* RENDER OPTIONS */}
+            {q.type === 'mcq' && (
+              <div className="grid grid-cols-1 gap-4">
+                {q.o?.map((opt: string, i: number) => (
+                  <button key={i} onClick={() => setAnswers({...answers, [q.id]: i})}
+                    className={`p-5 text-left rounded-2xl border-2 font-medium transition-all flex items-center gap-4 group ${answers[q.id] === i ? 'border-teal-500 bg-teal-50' : 'border-slate-100 hover:border-teal-200 hover:bg-slate-50'}`}>
+                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-colors ${answers[q.id] === i ? 'bg-teal-600 text-white shadow-lg' : 'bg-white text-slate-400 border group-hover:border-teal-300'}`}>{String.fromCharCode(65 + i)}</span>
+                    <div className="text-slate-700"><MathText content={opt} /></div>
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {q.type === 'true-false' && (
+               <div className="space-y-4">
+                 {q.s?.map((item: any, subIdx: number) => {
+                    const currentAns = answers[q.id] || [];
+                    return (
+                       <div key={subIdx} className="bg-slate-50 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                          <div className="font-medium text-slate-700 text-sm"><MathText content={item.text} /></div>
+                          <div className="flex gap-2 shrink-0">
+                             <button onClick={() => { const n = [...currentAns]; n[subIdx] = true; setAnswers({...answers, [q.id]: n}); }}
+                                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase ${currentAns[subIdx] === true ? 'bg-green-600 text-white shadow' : 'bg-white border text-slate-400'}`}>Đúng</button>
+                             <button onClick={() => { const n = [...currentAns]; n[subIdx] = false; setAnswers({...answers, [q.id]: n}); }}
+                                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase ${currentAns[subIdx] === false ? 'bg-rose-600 text-white shadow' : 'bg-white border text-slate-400'}`}>Sai</button>
+                          </div>
+                       </div>
+                    )
+                 })}
+               </div>
+            )}
+
+            {q.type === 'short-answer' && (
+               <div className="max-w-md">
+                 <input type="text" value={answers[q.id] || ""} 
+                    onChange={e => setAnswers({...answers, [q.id]: e.target.value})}
+                    className="w-full p-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold text-xl text-teal-700 focus:border-teal-500 outline-none transition-all shadow-inner" placeholder="Nhập đáp án của bạn..." />
+               </div>
+            )}
+          </div>
+          
+          <div className="flex justify-between mt-6 gap-4">
+              <button onClick={() => setIdx(Math.max(0, currentIdx - 1))} disabled={currentIdx === 0} className="px-6 py-4 bg-white border border-slate-200 text-slate-500 rounded-xl font-bold uppercase text-xs hover:bg-slate-50 disabled:opacity-50 transition-all shadow-sm">Câu trước</button>
+              
+              {/* Thanh điều hướng nhanh */}
+              <div className="hidden md:flex gap-1 overflow-x-auto max-w-[50%] no-scrollbar items-center px-2">
+                 {questions.map((_q:any, i:number) => (
+                    <button key={i} onClick={() => setIdx(i)} className={`w-2 h-2 rounded-full transition-all ${i === currentIdx ? 'bg-teal-600 scale-125' : answers[_q.id] !== undefined ? 'bg-teal-300' : 'bg-slate-200'}`} />
+                 ))}
+              </div>
+
+              <button onClick={() => setIdx(Math.min(questions.length - 1, currentIdx + 1))} disabled={currentIdx === questions.length - 1} className="px-6 py-4 bg-teal-600 text-white rounded-xl font-bold uppercase text-xs hover:bg-teal-700 transition-all shadow-lg shadow-teal-600/20">Câu sau</button>
+          </div>
+       </div>
+    </div>
+  );
+};
+
+// 2. Giao diện Xem lại (Review)
+const ReviewInterface = ({ questions, answers }: any) => {
+  return (
+    <div className="max-w-5xl mx-auto p-4 md:p-8 animate-fadeIn space-y-8 pb-20">
+      <div className="flex justify-between items-center sticky top-2 bg-slate-50/95 backdrop-blur-md p-4 z-20 rounded-2xl shadow-sm border border-slate-100">
+         <h2 className="text-xl md:text-2xl font-black text-teal-700 uppercase tracking-tight">Chi tiết bài làm</h2>
+         <button onClick={() => window.location.reload()} className="bg-slate-800 text-white px-5 py-2 rounded-xl font-bold text-[10px] md:text-xs uppercase hover:bg-slate-900 shadow-lg">Về trang chủ</button>
+      </div>
+
+      <div className="space-y-6">
+        {questions.map((q: any, idx: number) => {
+          const userAns = answers[q.id];
+          let isCorrect = false;
+          let correctText = q.a || ""; // Đáp án đúng text
+
+          // CHECK ĐÚNG SAI CƠ BẢN
+          if (q.type === 'mcq') {
+             const userText = q.o ? q.o[userAns as number] : "";
+             if (userText && q.a && userText.trim() === q.a.trim()) isCorrect = true;
+          } else if (q.type === 'short-answer') {
+             if (String(userAns).trim().toLowerCase() === String(q.a).trim().toLowerCase()) isCorrect = true;
+          }
+
+          return (
+            <div key={q.id} className={`bg-white p-6 md:p-8 rounded-3xl shadow-sm border-l-8 ${isCorrect ? 'border-green-500' : 'border-rose-500'}`}>
+               <div className="flex justify-between mb-4 border-b border-slate-50 pb-4">
+                  <span className="font-bold text-slate-700 text-lg">Câu {idx + 1} <span className="text-xs text-slate-400 font-normal ml-2">ID: {q.id}</span></span>
+                  <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full ${isCorrect ? 'bg-green-100 text-green-700' : 'bg-rose-100 text-rose-700'}`}>
+                    {isCorrect ? 'ĐÚNG' : 'SAI / CHƯA CHẤM'}
+                  </span>
+               </div>
+               
+               <div className="mb-6 text-slate-800 text-lg"><MathText content={q.question} /></div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  {/* Cột User chọn */}
+                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                     <div className="text-[10px] font-bold text-slate-400 uppercase mb-2">Bạn chọn:</div>
+                     <div className="font-medium text-slate-700 text-base">
+                        {q.type === 'mcq' ? (
+                          q.o && userAns !== undefined ? (
+                             <div className="flex gap-2">
+                                <span className="font-bold">{String.fromCharCode(65 + (userAns as number))}.</span> 
+                                <MathText content={q.o[userAns as number]} />
+                             </div>
+                          ) : <span className="text-slate-400 italic">Chưa làm</span>
+                        ) : q.type === 'true-false' ? (
+                          <div className="grid grid-cols-1 gap-2">
+                             {q.s?.map((s:any, i:number) => (
+                                <div key={i} className="flex justify-between text-xs">
+                                   <span>Ý {i+1}</span>
+                                   <span className={userAns?.[i]===true?'text-green-600 font-bold':userAns?.[i]===false?'text-rose-600 font-bold':'text-slate-400'}>
+                                      {userAns?.[i]===true?'ĐÚNG':userAns?.[i]===false?'SAI':'TRỐNG'}
+                                   </span>
+                                </div>
+                             ))}
+                          </div>
+                        ) : (
+                          <MathText content={String(userAns || "Trống")} />
+                        )}
+                     </div>
+                  </div>
+                  
+                  {/* Cột Đáp án đúng */}
+                  <div className="bg-green-50 p-5 rounded-2xl border border-green-100">
+                     <div className="text-[10px] font-bold text-green-600 uppercase mb-2">Đáp án đúng:</div>
+                     <div className="font-bold text-green-800 text-base">
+                        {q.type === 'true-false' ? (
+                           <div className="grid grid-cols-1 gap-2">
+                             {q.s?.map((s:any, i:number) => (
+                                <div key={i} className="flex justify-between text-xs">
+                                   <span>Ý {i+1}</span>
+                                   <span className={s.a?'text-green-700':'text-rose-700'}>{s.a?'ĐÚNG':'SAI'}</span>
+                                </div>
+                             ))}
+                           </div>
+                        ) : (
+                           <MathText content={correctText} />
+                        )}
+                     </div>
+                  </div>
+               </div>
+               
+               {/* List MCQ Options cho dễ so sánh */}
+               {q.type === 'mcq' && q.o && (
+                 <div className="mt-6 pt-6 border-t border-slate-50">
+                   <div className="text-[10px] font-bold text-slate-400 uppercase mb-3">Các phương án:</div>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                     {q.o.map((opt:string, i:number) => (
+                       <div key={i} className={`text-sm p-3 rounded-xl border flex gap-2 ${i === userAns ? 'bg-slate-100 border-slate-300' : 'border-slate-50 bg-white'}`}>
+                         <span className="font-bold text-slate-500">{String.fromCharCode(65+i)}.</span> 
+                         <div className="text-slate-600"><MathText content={opt} /></div>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
+               )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  );
+};
+
+export default App;
