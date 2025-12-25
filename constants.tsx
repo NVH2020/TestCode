@@ -7,55 +7,13 @@ export const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbzPin0Lb
 
 export const API_ROUTING: Record<string, string> = {
   "Test12345678": "https://script.google.com/macros/s/AKfycbyc5zVzrdXukeL6kr2nEoyLVxiaD0aMquX8gtkk15SpeQKyK33A1mKcZoIJqsMuqwme/exec",
-  "Ha0988948882": "https://script.google.com/macros/s/AKfycbzPin0LbYlG0pTrhnmArHT43nVBIjdH5YXqjsjjyXcT4oPltRDCkoP5TNlKdbFsSPk1/exec"
-};
-
-export const REGISTER_LINKS = {
-  MATH: "https://admintoanhoc.vercel.app/",
-  APP: "https://forms.gle/q8J4FQEFYDfhVung7"
+  "Ha0988948882": "https://script.google.com/macros/s/AKfycbzPin0LbYlG0pTrhnmArHT43nVBIjdH5YXqjsjjyXcT4oPltRDCkoP5TNlKdbFsSPk1/exec",
+  "0987654321": "https://script.google.com/macros/s/URL_GIAO_VIEN_B/exec"
 };
 
 export const TOPICS_DATA: Record<number, Topic[]> = {
+  // ... (giữ nguyên các khối 9, 10, 11)
   9: [
-    { id: 1, name: "1. Phương trình và hệ phương trình" },
-    { id: 2, name: "2. Hàm số bậc hai y=ax^2" },
-    { id: 3, name: "3. Hệ thức lượng tam giác vuông" },
-    { id: 4, name: "4. Đường tròn" }
-  ],
-  10: [
-    { id: 1, name: "1. Mệnh đề và Tập hợp" },
-    { id: 2, name: "2. BPT bậc nhất hai ẩn" },
-    { id: 3, name: "3. Hàm số bậc hai" },
-    { id: 4, name: "4. Hệ thức lượng tam giác" },
-    { id: 5, name: "5. Vectơ" },
-    { id: 6, name: "6. Thống kê" },
-    { id: 7, name: "7. Tọa độ phẳng" },
-    { id: 8, name: "8. Đại số tổ hợp" },
-    { id: 9, name: "9. Xác suất" }
-  ],
-  11: [
-    { id: 1, name: "1. Hàm số lượng giác" },
-    { id: 2, name: "2. Dãy số, CSC, CSN" },
-    { id: 3, name: "3. Giới hạn và Liên tục" },
-    { id: 4, name: "4. Quan hệ song song" },
-    { id: 5, name: "5. Mũ và Logarit" },
-    { id: 6, name: "6. Quan hệ vuông góc" },
-    { id: 7, name: "7. Đạo hàm" },
-    { id: 8, name: "8. Xác suất" }
-  ],
-  12: [
-    { id: 1, name: "1. Khảo sát hàm số" },
-    { id: 2, name: "2. Vectơ Oxyz" },
-    { id: 3, name: "3. Mẫu số liệu ghép nhóm" },
-    { id: 4, name: "4. Nguyên hàm và Tích phân" },
-    { id: 5, name: "5. Tọa độ đường, mặt Oxyz" },
-    { id: 6, name: "6. Xác suất có điều kiện" }
-  ]
-};
-
-export const EXAM_CODES: Record<number, ExamCodeDefinition[]> = {
-  
- 9: [
     { id: 1, name: "1. Phương trình và hệ phương trình bậc nhất" },
     { id: 2, name: "2. Phương trình bậc hai một ẩn số" },
     { id: 3, name: "3. Hệ thức lượng trong tam giác vuông" },

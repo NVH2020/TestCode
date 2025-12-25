@@ -4,26 +4,88 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Testcode - Hệ Thống Kiểm Tra Online</title>
+    <title>TaodOk - Hệ Thống Kiểm Tra Phân Hóa</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Font chữ Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Cấu hình MathJax -->
     <script>
       window.MathJax = {
-        tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$']] },
-        options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'] }
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          displayMath: [['$$', '$$'], ['\\[', '\\]']],
+          processEscapes: true
+        },
+        svg: {
+          fontCache: 'global'
+        },
+        options: {
+          enableMenu: false,
+          ignoreHtmlClass: 'tex2jax_ignore',
+          processHtmlClass: 'mathjax-container'
+        }
       };
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
     <style>
-      body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-      .animate-fadeIn { animation: fadeIn 0.4s ease-out; }
-      @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      .no-scrollbar::-webkit-scrollbar { display: none; }
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f8fafc;
+        color: #1e293b;
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+      mjx-container {
+        outline: none !important;
+      }
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .animate-fadeIn {
+        animation: fadeIn 0.4s ease-out;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
     </style>
- 
+
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
+  }
+}
+</script>
+  <link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>
+    <!-- Kích hoạt chạy ứng dụng từ file index.tsx dùng đường dẫn tương đối -->
     <script type="module" src="./index.tsx"></script>
-  </body>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>
