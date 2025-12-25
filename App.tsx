@@ -1,256 +1,378 @@
+
 import React, { useState, useEffect } from 'react';
-// Import các type (bạn tự define trong types.ts nhé, hoặc lấy từ code cũ)
-import { Question, ExamConfig, StudentInfo, ExamState } from './types'; 
-import { DEFAULT_API_URL } from './constants';
-import { generateExamFromMatrix, calculateScore, MatrixConfig } from './services/examEngine';
-import MathText from './components/MathText'; // Giả sử bạn đã có component này để render Latex
+import { 
+  Question, ExamConfig, StudentInfo, ExamState, ExamCodeDefinition, SheetResult 
+} from './types.ts';
+import { 
+  GRADES, TOPICS_DATA, CLASSES_LIST, MAX_VIOLATIONS, EXAM_CODES, DEFAULT_API_URL, REGISTER_LINKS 
+} from './constants.tsx';
+import { generateExam, generateExamFromMatrix, calculateScore, MatrixConfig } from './services/examEngine.ts';
+import MathText from './components/MathText.tsx';
 
 const App: React.FC = () => {
-  // --- STATE ---
-  const [step, setStep] = useState<'entry' | 'info_setup' | 'exam' | 'result'>('entry');
+  const [step, setStep] = useState<'entry' | 'info_setup' | 'exam' | 'result' | 'review'>('entry');
   const [loading, setLoading] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'none'>('none');
+  const [showScoreModal, setShowScoreModal] = useState(false);
   
-  // Dữ liệu User & Form
   const [authForm, setAuthForm] = useState({ idnumber: '', account: '', pass: '', confirmPass: '' });
-  const [student, setStudent] = useState<StudentInfo>({ 
-      fullName: '', studentClass: '', idNumber: '', examCode: '', 
-      isVerified: false, isLoggedIn: false, limitTab: 2 
+  const [remoteMatrix, setRemoteMatrix] = useState<MatrixConfig | null>(null);
+
+  const [config, setConfig] = useState<ExamConfig>({
+    grade: 10, topics: [], duration: 45,
+    numMC: 12, scoreMC: 6, mcL3: 0, mcL4: 0,
+    numTF: 4, scoreTF: 2, tfL3: 0, tfL4: 0,
+    numSA: 6, scoreSA: 2, saL3: 0, saL4: 0
   });
 
-  // Dữ liệu Đề thi
+  const [student, setStudent] = useState<StudentInfo>({
+    fullName: '', studentClass: 'Tự do', idNumber: '', examCode: '', phoneNumber: '', isVerified: false, isLoggedIn: false, limitTab: MAX_VIOLATIONS
+  });
+
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [config, setConfig] = useState<ExamConfig>({ duration: 45 } as any);
   const [examState, setExamState] = useState<ExamState>({
     currentQuestionIndex: 0, answers: {}, timeLeft: 0, violations: 0, isFinished: false, startTime: new Date()
   });
 
-  // --- XỬ LÝ AUTH (LOGIN/REGISTER) ---
-  const handleAuth = async () => {
-    setLoading(true);
-    try {
-      // Gọi API GAS
-      const params = authMode === 'login' 
-        ? `action=login&account=${authForm.account}&pass=${authForm.pass}`
-        : `action=register&idnumber=${authForm.idnumber}&account=${authForm.account}&pass=${authForm.pass}`;
-      
-      const res = await fetch(`${DEFAULT_API_URL}?${params}`);
-      const data = await res.json();
+  const isMatrixExam = EXAM_CODES[config.grade].find(c => c.code === student.examCode)?.topics === 'matrix';
 
+  // Đồng hồ đếm ngược
+  useEffect(() => {
+    let timer: any;
+    if (step === 'exam' && examState.timeLeft > 0 && !examState.isFinished) {
+      timer = setInterval(() => {
+        setExamState(prev => {
+          if (prev.timeLeft <= 1) {
+            clearInterval(timer);
+            finishExam();
+            return { ...prev, timeLeft: 0 };
+          }
+          return { ...prev, timeLeft: prev.timeLeft - 1 };
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [step, examState.timeLeft, examState.isFinished]);
+
+  const handleAuth = async () => {
+    if (!authForm.account || !authForm.pass || (authMode === 'register' && !authForm.idnumber)) {
+      alert("Vui lòng nhập đầy đủ thông tin!");
+      return;
+    }
+    if (authMode === 'register' && authForm.pass !== authForm.confirmPass) {
+      alert("Mật khẩu không khớp!");
+      return;
+    }
+
+    setLoading(true);
+    const action = authMode === 'login' ? 'login' : 'register';
+    const url = `${DEFAULT_API_URL}?action=${action}&account=${encodeURIComponent(authForm.account)}&pass=${encodeURIComponent(authForm.pass)}&idnumber=${encodeURIComponent(authForm.idnumber)}`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
       if (data.status === 'success') {
-        if (authMode === 'login') {
-          setStudent({ 
-             ...student, isLoggedIn: true, isVerified: true, 
-             fullName: data.name, idNumber: data.sbd, 
-             studentClass: data.class, limitTab: data.limittab 
+        if (action === 'register') {
+          alert(`Đăng ký thành công cho ${data.name}! Mời bạn đăng nhập.`);
+          setAuthMode('login');
+        } else {
+          setStudent({
+            ...student, fullName: data.name, studentClass: data.class, idNumber: data.sbd,
+            isVerified: true, isLoggedIn: true, limitTab: data.limittab || MAX_VIOLATIONS
           });
           setAuthMode('none');
-        } else {
-          alert("Đăng ký thành công! Hãy đăng nhập.");
-          setAuthMode('login');
+          alert(`Chào mừng ${data.name}!`);
         }
       } else {
         alert(data.message);
       }
     } catch (e) {
-      alert("Lỗi kết nối!");
+      alert("Lỗi kết nối máy chủ! Hãy kiểm tra Deploy Apps Script (Anyone).");
     } finally {
       setLoading(false);
     }
   };
 
-  // --- XỬ LÝ LẤY ĐỀ THI (Bước quan trọng nhất) ---
-  const handleGetExam = async () => {
-    if (!student.examCode) { alert("Nhập mã đề!"); return; }
+  const verifySBD = async () => {
+    if (student.isLoggedIn) return;
+    if (!student.idNumber.trim()) { alert("Vui lòng nhập SBD!"); return; }
+    
     setLoading(true);
-
     try {
-      // 1. Lấy cấu hình từ Google Sheet
-      const res = await fetch(`${DEFAULT_API_URL}?action=getExamData&code=${student.examCode}`);
-      const data = await res.json();
-
+      const url = `${DEFAULT_API_URL}?action=checkSBD&sbd=${encodeURIComponent(student.idNumber.trim())}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      
       if (data.status === 'success') {
-        const matrix: MatrixConfig = data.matrix;
-        
-        // 2. Trộn đề từ Local Data (questions.ts) dựa trên config
-        const generatedQuestions = generateExamFromMatrix(matrix);
-
-        if (generatedQuestions.length === 0) {
-          alert("Lỗi: Không tìm thấy câu hỏi phù hợp trong dữ liệu!");
-        } else {
-          setQuestions(generatedQuestions);
-          setConfig(prev => ({ ...prev, duration: matrix.duration }));
-          setStep('info_setup'); // Chuyển sang màn hình xác nhận
+        if (data.hasAccount) {
+          alert("SBD này đã có tài khoản ứng dụng. Bạn hãy chọn ĐĂNG NHẬP!");
+          setAuthMode('login');
+          return;
         }
+        setStudent(prev => ({ 
+          ...prev, fullName: data.name, studentClass: data.class, isVerified: true,
+          limitTab: data.limittab || MAX_VIOLATIONS
+        }));
       } else {
         alert(data.message);
       }
-    } catch (e) {
-      console.error(e);
-      alert("Lỗi tải đề! Kiểm tra mã đề hoặc mạng.");
+    } catch {
+      alert("Lỗi máy chủ khi kiểm tra SBD!");
     } finally {
       setLoading(false);
     }
   };
 
-  // --- BẮT ĐẦU THI ---
-  const startExam = () => {
-    setExamState({
-      currentQuestionIndex: 0, answers: {}, violations: 0, isFinished: false,
-      timeLeft: config.duration * 60, startTime: new Date()
-    });
+  const handleEntryNext = async () => {
+    if (!student.examCode) { alert("Chọn mã đề!"); return; }
+    
+    if (isMatrixExam) {
+      setLoading(true);
+      try {
+        const url = `${DEFAULT_API_URL}?action=getMatrix&code=${student.examCode}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.status === 'success') {
+          setRemoteMatrix(data.matrix);
+          setStep('info_setup');
+        } else {
+          alert(data.message);
+        }
+      } catch {
+        alert("Không thể tải ma trận đề!");
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setRemoteMatrix(null);
+      setStep('info_setup');
+    }
+  };
+
+  const handleStartExam = () => {
+    if (isMatrixExam && !student.isVerified && !student.isLoggedIn) {
+      alert("Cần xác thực SBD hoặc Đăng nhập!");
+      return;
+    }
+    
+    let genResult;
+    if (remoteMatrix) {
+      genResult = generateExamFromMatrix(remoteMatrix);
+      setQuestions(genResult.questions);
+      setConfig(genResult.config);
+      setExamState({ 
+        currentQuestionIndex: 0, answers: {}, 
+        timeLeft: genResult.config.duration * 60, 
+        violations: 0, isFinished: false, startTime: new Date() 
+      });
+    } else {
+      const qs = generateExam(config);
+      setQuestions(qs);
+      setExamState({ 
+        currentQuestionIndex: 0, answers: {}, 
+        timeLeft: config.duration * 60, 
+        violations: 0, isFinished: false, startTime: new Date() 
+      });
+    }
     setStep('exam');
   };
 
-  // --- NỘP BÀI (Hybrid: Tính điểm local -> Gửi server) ---
   const finishExam = async () => {
-    // 1. Tính điểm
-    const score = calculateScore(questions, examState.answers, config);
+    const finalScore = calculateScore(questions, examState.answers, config);
     const finishTime = new Date();
-    const durationSec = Math.floor((finishTime.getTime() - examState.startTime.getTime()) / 1000);
-    const timeString = `${Math.floor(durationSec / 60)}p ${durationSec % 60}s`;
+    setExamState(prev => ({ ...prev, isFinished: true, finishTime }));
+    setStep('result');
+    
+    const durSec = Math.floor((finishTime.getTime() - examState.startTime.getTime()) / 1000);
+    const timeStr = `${Math.floor(durSec / 60)}p ${durSec % 60}s`;
 
-    setExamState(prev => ({ ...prev, isFinished: true }));
-    setLoading(true);
-
-    try {
-      // 2. Gửi kết quả về Sheet (Dùng POST)
-      const payload = {
-        action: 'saveResult',
-        makiemtra: student.examCode,
-        sbd: student.idNumber,
-        name: student.fullName,
-        class: student.studentClass,
-        tongdiem: score,
-        time: timeString,
-        detail: JSON.stringify(examState.answers)
-      };
-
-      // fetch POST text/plain để tránh preflight option
-      await fetch(DEFAULT_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify(payload)
-      });
-
-      alert(`Nộp bài thành công! Điểm: ${score}`);
-    } catch (e) {
-      alert(`Đã có lỗi mạng khi lưu, nhưng điểm của bạn là: ${score}`);
-    } finally {
-      setStep('result');
-      setLoading(false);
-    }
+    const saveUrl = `${DEFAULT_API_URL}?action=saveResult&makiemtra=${student.examCode}&sbd=${student.idNumber}&name=${encodeURIComponent(student.fullName)}&class=${encodeURIComponent(student.studentClass)}&tongdiem=${finalScore}&time=${encodeURIComponent(timeStr)}`;
+    fetch(saveUrl, { mode: 'no-cors' });
   };
 
-  // --- UI RENDER (Rút gọn cho ngắn, bạn chèn style tùy ý) ---
-  return (
-    <div className="min-h-screen bg-gray-50 p-4 font-sans text-gray-800">
-      {/* HEADER */}
-      <header className="mb-6 bg-white p-4 shadow rounded flex justify-between items-center">
-        <h1 className="font-bold text-xl text-teal-700">HỆ THỐNG THI ONLINE</h1>
-        {student.isLoggedIn && <div className="text-sm">Xin chào, <b>{student.fullName}</b></div>}
+  const renderEntry = () => (
+    <div className="max-w-4xl mx-auto p-6 space-y-8 pt-10 animate-fadeIn">
+      <header className="text-center space-y-4">
+        <h1 className="text-4xl font-black text-teal-600 uppercase tracking-tighter">TestcodeOk</h1>
+        <p className="text-slate-400 font-bold text-sm tracking-widest">Hệ thống thi tích hợp Ma trận Google Sheet</p>
+        <div className="flex flex-wrap justify-center gap-3 mt-8">
+          <button onClick={() => setShowScoreModal(true)} className="px-6 py-3 bg-white border-2 border-teal-500 text-teal-600 rounded-2xl font-black shadow-lg uppercase text-[10px]">TRA ĐIỂM</button>
+          <a href={REGISTER_LINKS.MATH} target="_blank" className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-black shadow-lg uppercase text-[10px]">HỌC TOÁN ONLINE</a>
+          {student.isLoggedIn ? (
+            <button onClick={() => setStudent({...student, isLoggedIn: false})} className="px-6 py-3 bg-rose-50 text-rose-600 border-2 border-rose-100 rounded-2xl font-black uppercase text-[10px]">ĐĂNG XUẤT</button>
+          ) : (
+            <button onClick={() => setAuthMode('login')} className="px-6 py-3 bg-teal-600 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg">ĐĂNG NHẬP / ĐĂNG KÝ</button>
+          )}
+        </div>
       </header>
+      <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-slate-100 space-y-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {GRADES.map(g => (
+            <button key={g} onClick={() => setConfig({...config, grade: g})} className={`py-5 rounded-2xl font-black transition-all ${config.grade === g ? 'bg-teal-600 text-white shadow-xl scale-105' : 'bg-slate-50 text-slate-300'}`}>Khối {g}</button>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {EXAM_CODES[config.grade].map(def => (
+            <button key={def.code} onClick={() => setStudent({...student, examCode: def.code})} className={`p-6 text-left rounded-3xl border-2 transition-all ${student.examCode === def.code ? 'border-teal-500 bg-teal-50 shadow-inner' : 'border-slate-50 hover:bg-slate-50'}`}>
+              <div className="font-black text-teal-700 text-lg mb-1">{def.code}</div>
+              <div className="text-[10px] text-slate-400 uppercase font-black tracking-widest">{def.topics === 'matrix' ? 'Chế độ Ma trận' : 'Luyện tập tự do'}</div>
+            </button>
+          ))}
+        </div>
+        <button onClick={handleEntryNext} disabled={loading} className="w-full py-6 bg-teal-600 text-white rounded-3xl font-black text-xl uppercase shadow-2xl hover:bg-teal-700 active:scale-95 transition-all">{loading ? 'Hệ thống đang tải...' : 'Bắt đầu ngay'}</button>
+      </div>
+    </div>
+  );
 
-      {/* BODY */}
-      <main className="max-w-3xl mx-auto bg-white p-6 shadow-lg rounded-xl">
-        {loading && <div className="text-center text-teal-600 font-bold">Đang xử lý...</div>}
-        
-        {/* Màn 1: ENTRY & LOGIN */}
-        {step === 'entry' && (
+  const renderInfoSetup = () => (
+    <div className="max-w-4xl mx-auto p-6 animate-fadeIn">
+      <button onClick={() => setStep('entry')} className="mb-6 font-black text-slate-400 uppercase text-xs hover:text-teal-600">← Chọn mã đề khác</button>
+      <div className="bg-white p-10 rounded-[3rem] shadow-2xl border border-slate-100 space-y-8">
+        <h2 className="text-2xl font-black text-teal-700 uppercase">Thông tin thí sinh</h2>
+        {student.isLoggedIn ? (
+           <div className="p-8 bg-teal-50 rounded-3xl border-2 border-teal-100 shadow-sm">
+             <div className="text-[10px] text-teal-600 uppercase font-black mb-2 tracking-widest">Đã đăng nhập thành công</div>
+             <div className="font-black text-slate-800 text-2xl">{student.fullName}</div>
+             <div className="text-slate-500 font-bold uppercase text-xs mt-1">SBD: {student.idNumber} • Lớp: {student.studentClass}</div>
+           </div>
+        ) : isMatrixExam ? (
           <div className="space-y-4">
-             {authMode === 'none' && !student.isLoggedIn ? (
-               <div className="text-center space-y-3">
-                 <h2 className="text-lg font-bold">Bạn chưa đăng nhập</h2>
-                 <button onClick={() => setAuthMode('login')} className="bg-teal-600 text-white px-6 py-2 rounded">Đăng nhập ngay</button>
-               </div>
-             ) : authMode !== 'none' ? (
-               // Form Login/Register
-               <div className="flex flex-col gap-3">
-                  <h3 className="font-bold text-center">{authMode === 'login' ? 'ĐĂNG NHẬP' : 'ĐĂNG KÝ'}</h3>
-                  {authMode === 'register' && <input placeholder="ID Bản Quyền" value={authForm.idnumber} onChange={e=>setAuthForm({...authForm, idnumber: e.target.value})} className="border p-2 rounded"/>}
-                  <input placeholder="Tài khoản" value={authForm.account} onChange={e=>setAuthForm({...authForm, account: e.target.value})} className="border p-2 rounded"/>
-                  <input type="password" placeholder="Mật khẩu" value={authForm.pass} onChange={e=>setAuthForm({...authForm, pass: e.target.value})} className="border p-2 rounded"/>
-                  <button onClick={handleAuth} className="bg-blue-600 text-white p-2 rounded">Xác nhận</button>
-                  <button onClick={() => setAuthMode('none')} className="text-sm underline">Quay lại</button>
-               </div>
-             ) : (
-               // Đã đăng nhập -> Nhập mã đề
-               <div className="text-center space-y-4">
-                 <p>SBD: {student.idNumber} | Lớp: {student.studentClass}</p>
-                 <input 
-                    placeholder="Nhập mã đề thi (VD: DE01)" 
-                    value={student.examCode} 
-                    onChange={e => setStudent({...student, examCode: e.target.value})}
-                    className="border-2 border-teal-500 p-3 rounded-lg w-full text-center text-xl font-bold uppercase"
-                 />
-                 <button onClick={handleGetExam} className="bg-teal-600 text-white px-8 py-3 rounded-lg font-bold">LẤY ĐỀ THI</button>
-               </div>
-             )}
+            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Xác thực số báo danh</label>
+            <div className="flex gap-3">
+              <input type="text" value={student.idNumber} onChange={e => setStudent({...student, idNumber: e.target.value.toUpperCase()})} className="flex-1 p-5 rounded-2xl border-2 font-black outline-none focus:border-teal-500 bg-slate-50" placeholder="VD: SBD001" />
+              <button onClick={verifySBD} className="px-10 bg-teal-600 text-white rounded-2xl font-black shadow-lg hover:bg-teal-700">Check</button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <input type="text" value={student.fullName} onChange={e => setStudent({...student, fullName: e.target.value})} className="w-full p-5 rounded-2xl border-2 font-black bg-slate-50 focus:border-teal-500" placeholder="Họ và Tên của bạn..." />
+            <select value={student.studentClass} onChange={e => setStudent({...student, studentClass: e.target.value})} className="w-full p-5 rounded-2xl border-2 font-black bg-slate-50 focus:border-teal-500">
+               {CLASSES_LIST.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
         )}
+        {student.isVerified && !student.isLoggedIn && <div className="p-5 bg-green-50 text-green-700 font-black rounded-2xl border-2 border-green-100 animate-fadeIn">✓ Xác thực: {student.fullName} ({student.studentClass})</div>}
+        <button onClick={handleStartExam} className="w-full py-6 bg-teal-600 text-white rounded-3xl font-black uppercase text-xl shadow-2xl hover:bg-teal-700 transition-all">Vào phòng thi</button>
+      </div>
+    </div>
+  );
 
-        {/* Màn 2: INFO SETUP (Chuẩn bị vào thi) */}
-        {step === 'info_setup' && (
-           <div className="text-center space-y-4">
-             <h2 className="text-2xl font-bold text-teal-700">Đề thi đã sẵn sàng!</h2>
-             <p>Số lượng câu hỏi: <b>{questions.length}</b></p>
-             <p>Thời gian làm bài: <b>{config.duration} phút</b></p>
-             <button onClick={startExam} className="bg-red-600 text-white px-8 py-3 rounded-lg font-bold text-xl animate-pulse">BẮT ĐẦU LÀM BÀI</button>
-           </div>
-        )}
+  return (
+    <div className="min-h-screen bg-slate-50 selection:bg-teal-100">
+      {step === 'entry' && renderEntry()}
+      {step === 'info_setup' && renderInfoSetup()}
+      {step === 'exam' && (
+        <div className="min-h-screen flex flex-col p-4 md:p-8 animate-fadeIn">
+           <header className="max-w-5xl mx-auto w-full flex justify-between items-center mb-8 bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-100 sticky top-4 z-10">
+             <div className="flex items-center gap-5">
+               <div className="w-14 h-14 bg-teal-600 text-white rounded-[1.2rem] flex items-center justify-center font-black text-2xl shadow-lg shadow-teal-600/30">{examState.currentQuestionIndex + 1}</div>
+               <div className="hidden sm:block">
+                 <div className="font-black text-slate-800 text-lg uppercase tracking-tight">{student.fullName}</div>
+                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Mã đề: {student.examCode}</div>
+               </div>
+             </div>
+             <div className={`text-4xl font-black font-mono tracking-tighter ${examState.timeLeft < 120 ? 'text-rose-600 animate-pulse' : 'text-teal-600'}`}>
+               {Math.floor(examState.timeLeft/60).toString().padStart(2,'0')}:{(examState.timeLeft%60).toString().padStart(2,'0')}
+             </div>
+             <button onClick={() => confirm("Xác nhận nộp bài?") && finishExam()} className="bg-rose-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs shadow-xl shadow-rose-600/30 hover:bg-rose-700 active:scale-95 transition-all">Nộp bài</button>
+           </header>
+           
+           <div className="flex-1 max-w-5xl mx-auto w-full">
+             <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl border border-slate-100 relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-2 h-full bg-teal-500"></div>
+               <div className="text-[11px] font-black text-teal-600 uppercase mb-6 tracking-[0.2em]">{questions[examState.currentQuestionIndex]?.part}</div>
+               <MathText content={questions[examState.currentQuestionIndex]?.question || ""} className="text-3xl font-bold text-slate-800 mb-12 leading-relaxed" />
+               
+               {questions[examState.currentQuestionIndex]?.type === 'mcq' && (
+                 <div className="grid grid-cols-1 gap-5">
+                   {questions[examState.currentQuestionIndex].o?.map((opt, i) => (
+                     <button key={i} onClick={() => setExamState({...examState, answers: {...examState.answers, [questions[examState.currentQuestionIndex].id]: i}})}
+                       className={`p-7 text-left rounded-3xl border-2 font-bold transition-all flex items-center gap-6 ${examState.answers[questions[examState.currentQuestionIndex].id] === i ? 'border-teal-500 bg-teal-50 shadow-inner' : 'border-slate-50 hover:bg-slate-50 hover:border-slate-200'}`}>
+                       <span className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg ${examState.answers[questions[examState.currentQuestionIndex].id] === i ? 'bg-teal-600 text-white shadow-lg' : 'bg-white text-slate-400 border'}`}>
+                         {String.fromCharCode(65 + i)}
+                       </span>
+                       <MathText content={opt} className="text-xl text-slate-700" />
+                     </button>
+                   ))}
+                 </div>
+               )}
 
-        {/* Màn 3: EXAM (Làm bài) */}
-        {step === 'exam' && (
-          <div>
-            {/* Thanh thời gian */}
-            <div className="sticky top-0 bg-gray-800 text-white p-2 text-center rounded mb-4 z-50">
-               Thời gian còn lại: {Math.floor(examState.timeLeft / 60)}:{String(examState.timeLeft % 60).padStart(2,'0')}
-               {/* Note: Bạn cần thêm useEffect để giảm timeLeft mỗi giây */}
-            </div>
-
-            {/* Render câu hỏi */}
-            <div className="space-y-8">
-              {questions.map((q, idx) => (
-                <div key={q.id} className="border-b pb-4">
-                  <div className="font-bold text-blue-800 mb-2">Câu {idx + 1}: <MathText text={q.question} /></div>
-                  <div className="ml-2 space-y-2">
-                    {/* Render Option dựa vào q.type (MCQ/TF/Short) - Bạn tự fill phần này từ code cũ nhé vì nó khá dài */}
-                    {q.type === 'mcq' && q.o?.map(opt => (
-                       <label key={opt} className="block cursor-pointer">
-                          <input 
-                             type="radio" 
-                             name={`q-${q.id}`} 
-                             onChange={() => setExamState(prev => ({...prev, answers: {...prev.answers, [q.id]: opt}}))}
-                          /> <MathText text={opt} />
-                       </label>
+               {questions[examState.currentQuestionIndex]?.type === 'true-false' && (
+                  <div className="space-y-6">
+                    {questions[examState.currentQuestionIndex].s?.map((item, idx) => (
+                      <div key={idx} className="flex flex-col sm:flex-row items-center gap-4 bg-slate-50 p-6 rounded-3xl">
+                        <div className="flex-1 font-bold text-slate-700 text-lg"><MathText content={item.text} /></div>
+                        <div className="flex gap-2">
+                          {[true, false].map((val) => {
+                             const currentAns = examState.answers[questions[examState.currentQuestionIndex].id] || [];
+                             const isSelected = currentAns[idx] === val;
+                             return (
+                               <button key={val.toString()} onClick={() => {
+                                 const newAns = [...currentAns];
+                                 newAns[idx] = val;
+                                 setExamState({...examState, answers: {...examState.answers, [questions[examState.currentQuestionIndex].id]: newAns}});
+                               }} className={`px-8 py-3 rounded-xl font-black text-xs uppercase transition-all ${isSelected ? (val ? 'bg-green-600 text-white shadow-lg' : 'bg-rose-600 text-white shadow-lg') : 'bg-white text-slate-400 border'}`}>
+                                 {val ? 'Đúng' : 'Sai'}
+                               </button>
+                             );
+                          })}
+                        </div>
+                      </div>
                     ))}
-                    {q.type === 'short-answer' && (
-                        <input 
-                            type="text" 
-                            className="border p-2 w-full rounded" 
-                            placeholder="Nhập đáp án..."
-                            onBlur={(e) => setExamState(prev => ({...prev, answers: {...prev.answers, [q.id]: e.target.value}}))}
-                        />
-                    )}
-                    {/* ... Thêm phần True/False tương tự ... */}
                   </div>
-                </div>
-              ))}
-            </div>
+               )}
 
-            <button onClick={finishExam} className="mt-8 w-full bg-green-600 text-white py-4 rounded font-bold text-xl">NỘP BÀI</button>
-          </div>
-        )}
-
-        {/* Màn 4: RESULT */}
-        {step === 'result' && (
-           <div className="text-center">
-             <h2 className="text-3xl font-bold text-green-600">Hoàn thành bài thi!</h2>
-             <p className="mt-4">Kết quả đã được lưu vào hệ thống.</p>
-             <button onClick={() => window.location.reload()} className="mt-6 bg-gray-500 text-white px-6 py-2 rounded">Thoát</button>
+               {questions[examState.currentQuestionIndex]?.type === 'short-answer' && (
+                  <div className="max-w-md">
+                    <input type="text" value={examState.answers[questions[examState.currentQuestionIndex].id] || ""} onChange={e => setExamState({...examState, answers: {...examState.answers, [questions[examState.currentQuestionIndex].id]: e.target.value}})}
+                      className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl font-black text-2xl text-teal-700 focus:border-teal-500 outline-none shadow-inner" placeholder="Nhập đáp án..." />
+                    <p className="mt-4 text-xs text-slate-400 font-bold uppercase tracking-widest text-center">Lưu ý: Nhập số hoặc cụm từ ngắn gọn</p>
+                  </div>
+               )}
+             </div>
+             
+             <div className="mt-10 flex justify-between gap-4">
+                <button onClick={() => setExamState({...examState, currentQuestionIndex: Math.max(0, examState.currentQuestionIndex - 1)})} disabled={examState.currentQuestionIndex === 0} className="flex-1 py-5 bg-white text-slate-400 border-2 border-slate-100 rounded-3xl font-black uppercase text-xs shadow-lg hover:text-teal-600 transition-all disabled:opacity-20">Câu trước</button>
+                <button onClick={() => setExamState({...examState, currentQuestionIndex: Math.min(questions.length - 1, examState.currentQuestionIndex + 1)})} disabled={examState.currentQuestionIndex === questions.length - 1} className="flex-1 py-5 bg-teal-600 text-white rounded-3xl font-black uppercase text-xs shadow-xl shadow-teal-600/30 hover:bg-teal-700 transition-all">Câu tiếp theo</button>
+             </div>
            </div>
-        )}
-      </main>
+        </div>
+      )}
+      
+      {step === 'result' && (
+        <div className="max-w-2xl mx-auto pt-20 px-6 animate-fadeIn">
+           <div className="bg-white p-20 rounded-[4rem] shadow-2xl border border-slate-50 text-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-2 bg-teal-500"></div>
+              <h2 className="text-xl font-black uppercase text-slate-400 mb-6 tracking-[0.3em]">Kết quả bài làm</h2>
+              <div className="text-[12rem] font-black leading-none text-teal-600 tracking-tighter shadow-teal-200 drop-shadow-2xl">
+                {calculateScore(questions, examState.answers, config).toFixed(1)}
+              </div>
+              <p className="mt-10 text-slate-500 font-bold uppercase text-xs tracking-widest">Hệ thống đã tự động lưu điểm của bạn</p>
+              <button onClick={() => window.location.reload()} className="mt-12 w-full py-6 bg-teal-600 text-white rounded-3xl font-black uppercase shadow-xl hover:bg-teal-700 transition-all">Quay lại trang chủ</button>
+           </div>
+        </div>
+      )}
+
+      {authMode !== 'none' && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-6">
+          <div className="bg-white rounded-[3.5rem] p-12 w-full max-w-md shadow-3xl relative border border-slate-100">
+             <button onClick={() => setAuthMode('none')} className="absolute top-8 right-8 font-black text-slate-300 hover:text-slate-600 text-2xl">✕</button>
+             <h3 className="text-3xl font-black text-slate-800 uppercase text-center mb-10 tracking-tight">{authMode === 'login' ? 'Đăng nhập' : 'Đăng ký học viên'}</h3>
+             <div className="space-y-4">
+                {authMode === 'register' && <input type="text" placeholder="ID của Giáo viên (idnumber)" value={authForm.idnumber} onChange={e => setAuthForm({...authForm, idnumber: e.target.value})} className="w-full p-5 bg-slate-50 border-2 rounded-2xl font-bold focus:border-teal-500 outline-none" />}
+                <input type="text" placeholder="Số điện thoại / Tài khoản" value={authForm.account} onChange={e => setAuthForm({...authForm, account: e.target.value})} className="w-full p-5 bg-slate-50 border-2 rounded-2xl font-bold focus:border-teal-500 outline-none" />
+                <input type="password" placeholder="Mật khẩu bảo mật" value={authForm.pass} onChange={e => setAuthForm({...authForm, pass: e.target.value})} className="w-full p-5 bg-slate-50 border-2 rounded-2xl font-bold focus:border-teal-500 outline-none" />
+                {authMode === 'register' && <input type="password" placeholder="Xác nhận lại mật khẩu" value={authForm.confirmPass} onChange={e => setAuthForm({...authForm, confirmPass: e.target.value})} className="w-full p-5 bg-slate-50 border-2 rounded-2xl font-bold focus:border-teal-500 outline-none" />}
+                <button onClick={handleAuth} disabled={loading} className="w-full py-6 bg-teal-600 text-white rounded-3xl font-black uppercase shadow-2xl hover:bg-teal-700 transition-all mt-4">{loading ? 'Đang xử lý...' : (authMode === 'login' ? 'Vào ứng dụng' : 'Hoàn tất đăng ký')}</button>
+                <div className="text-center pt-4">
+                   <button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="text-xs text-teal-600 underline font-black uppercase tracking-widest opacity-60 hover:opacity-100 transition-opacity">
+                     {authMode === 'login' ? 'Bạn chưa có tài khoản? Đăng ký' : 'Bạn đã có tài khoản? Đăng nhập'}
+                   </button>
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
