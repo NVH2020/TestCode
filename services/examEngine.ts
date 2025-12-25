@@ -24,73 +24,105 @@ function getLevel(q: Question): number {
 }
 
 /**
- * Phân tích x.y.z.t.u -> {grade, topic, l12, l3, l4}
- * Tự động bù 0 nếu thiếu phần đuôi
+ * Parses section: "Score; (G,T,L1,L2,L3,L4), ..."
  */
-function parseRule(ruleStr: string) {
-  const p = ruleStr.trim().split('.').map(Number);
-  return {
-    grade: p[0],
-    topic: p[1],
-    l12: p[2] || 0,
-    l3: p[3] || 0,
-    l4: p[4] || 0
-  };
+function parseMatrixSection(str: string) {
+  if (!str || !str.includes(';')) return { scorePerItem: 0, totalNeeded: 0, rules: [] };
+  
+  const [scorePart, rulesPart] = str.split(';');
+  const scorePerItem = parseFloat(scorePart.trim()) || 0;
+  
+  const rules: {g:number, t:number, c1:number, c2:number, c3:number, c4:number}[] = [];
+  const matches = rulesPart.matchAll(/\(([^)]+)\)/g);
+  let totalNeeded = 0;
+
+  for (const match of matches) {
+    const p = match[1].split(',').map(v => parseInt(v.trim()));
+    if (p.length < 2) continue;
+    const rule = {
+      g: p[0],
+      t: p[1],
+      c1: p[2] || 0,
+      c2: p[3] || 0,
+      c3: p[4] || 0,
+      c4: p[5] || 0
+    };
+    rules.push(rule);
+    totalNeeded += (rule.c1 + rule.c2 + rule.c3 + rule.c4);
+  }
+
+  return { scorePerItem, totalNeeded, rules };
 }
 
 export function generateExamFromMatrix(matrix: MatrixConfig): { questions: Question[], config: ExamConfig } {
-  const parseSection = (str: string) => {
-    if (!str) return { score: 0, count: 0, rules: [] };
-    const headerMatch = str.match(/\(([^)]+)\)/);
-    // (score;count)
-    const header = headerMatch ? headerMatch[1].split(';').map(v => parseFloat(v.trim())) : [0, 0];
-    const rulePart = str.replace(/\([^)]+\)/, '').replace(/^[:;]\s*/, '');
-    const rules = rulePart.split(';').filter(i => i.trim()).map(parseRule);
-    return { score: header[0], count: header[1], rules };
-  };
-
-  const mcqData = parseSection(matrix.mcq);
-  const tfData = parseSection(matrix.tf);
-  const saData = parseSection(matrix.short);
+  const sections = [
+    { type: 'mcq', data: parseMatrixSection(matrix.mcq) },
+    { type: 'true-false', data: parseMatrixSection(matrix.tf) },
+    { type: 'short-answer', data: parseMatrixSection(matrix.short) }
+  ];
 
   let finalQuestions: Question[] = [];
 
-  const process = (data: any, type: string) => {
-    data.rules.forEach((r: any) => {
+  sections.forEach(sec => {
+    sec.data.rules.forEach(rule => {
       const pool = ALL_QUESTIONS.filter(q => {
         const p = q.classTag.split('.');
-        return q.type === type && Number(p[0]) === r.grade && Number(p[1]) === r.topic;
+        return q.type === sec.type && Number(p[0]) === rule.g && Number(p[1]) === rule.t;
       });
 
-      const l4s = shuffleArray(pool.filter(q => getLevel(q) === 4)).slice(0, r.l4);
-      const l3s = shuffleArray(pool.filter(q => getLevel(q) === 3)).slice(0, r.l3);
-      const l12s = shuffleArray(pool.filter(q => getLevel(q) <= 2)).slice(0, r.l12);
+      const pools = [
+        shuffleArray(pool.filter(q => getLevel(q) === 1)),
+        shuffleArray(pool.filter(q => getLevel(q) === 2)),
+        shuffleArray(pool.filter(q => getLevel(q) === 3)),
+        shuffleArray(pool.filter(q => getLevel(q) === 4))
+      ];
 
-      finalQuestions = [...finalQuestions, ...l4s, ...l3s, ...l12s];
+      const counts = [rule.c1, rule.c2, rule.c3, rule.c4];
+
+      // Pick from level 4 down to 1 with fallback
+      for (let lv = 3; lv >= 0; lv--) {
+        let needed = counts[lv];
+        if (needed <= 0) continue;
+
+        // Try to pick from current level
+        const fromCurrent = pools[lv].splice(0, needed);
+        finalQuestions.push(...fromCurrent);
+        needed -= fromCurrent.length;
+
+        // Fallback to lower levels
+        let fallbackLv = lv - 1;
+        while (needed > 0 && fallbackLv >= 0) {
+          const fromFallback = pools[fallbackLv].splice(0, needed);
+          finalQuestions.push(...fromFallback);
+          needed -= fromFallback.length;
+          fallbackLv--;
+        }
+      }
     });
-  };
+  });
 
-  process(mcqData, 'mcq');
-  process(tfData, 'true-false');
-  process(saData, 'short-answer');
-
-  // Trộn các phương án trắc nghiệm so với câu hỏi gốc
+  // Shuffle MCQ options
   finalQuestions = finalQuestions.map(q => {
     if (q.type === 'mcq' && q.o) {
-      const shuffled = shuffleArray([...q.o]);
-      return { ...q, o: shuffled };
+      const shuffledOptions = shuffleArray([...q.o]);
+      return { ...q, o: shuffledOptions };
     }
     return q;
   });
 
-  const config: ExamConfig = {
-    grade: 0, topics: [], duration: matrix.thoigian || 45,
-    numMC: mcqData.count, scoreMC: mcqData.score,
-    numTF: tfData.count, scoreTF: tfData.score,
-    numSA: saData.count, scoreSA: saData.score
-  };
+  const mcq = parseMatrixSection(matrix.mcq);
+  const tf = parseMatrixSection(matrix.tf);
+  const sa = parseMatrixSection(matrix.short);
 
-  return { questions: finalQuestions, config };
+  return { 
+    questions: finalQuestions, 
+    config: {
+      grade: 0, topics: [], duration: matrix.thoigian || 45,
+      numMC: mcq.totalNeeded, scoreMC: mcq.totalNeeded * mcq.scorePerItem,
+      numTF: tf.totalNeeded, scoreTF: tf.totalNeeded * tf.scorePerItem,
+      numSA: sa.totalNeeded, scoreSA: sa.totalNeeded * sa.scorePerItem
+    } 
+  };
 }
 
 export function generateFreeExam(config: ExamConfig): Question[] {
@@ -101,28 +133,39 @@ export function generateFreeExam(config: ExamConfig): Question[] {
     return q.type === type && Number(p[0]) === config.grade && config.topics.includes(Number(p[1]));
   });
 
-  const pickForSection = (type: string, total: number) => {
+  const pickForType = (type: string, total: number) => {
     const pool = getPool(type);
     if (pool.length === 0) return [];
     
+    // Logic: 30% M3-4, 70% M1-2
     const n34 = Math.round(total * 0.3);
     const n12 = total - n34;
 
-    const l34 = shuffleArray(pool.filter(q => getLevel(q) >= 3)).slice(0, n34);
-    const l12 = shuffleArray(pool.filter(q => getLevel(q) <= 2)).slice(0, n12);
+    const pool34 = shuffleArray(pool.filter(q => getLevel(q) >= 3));
+    const pool12 = shuffleArray(pool.filter(q => getLevel(q) <= 2));
     
-    let result = [...l12, ...l34];
-    if (result.length < total) {
-      const remain = shuffleArray(pool.filter(q => !result.includes(q))).slice(0, total - result.length);
-      result = [...result, ...remain];
+    const picked: Question[] = [];
+    
+    const picked34 = pool34.splice(0, n34);
+    picked.push(...picked34);
+    
+    const needed12 = n12 + (n34 - picked34.length);
+    const picked12 = pool12.splice(0, needed12);
+    picked.push(...picked12);
+
+    // Final safety if still lacking
+    if (picked.length < total) {
+      const remaining = shuffleArray(pool.filter(q => !picked.includes(q)));
+      picked.push(...remaining.splice(0, total - picked.length));
     }
-    return result;
+
+    return picked;
   };
 
   questions = [
-    ...pickForSection('mcq', config.numMC),
-    ...pickForSection('true-false', config.numTF),
-    ...pickForSection('short-answer', config.numSA)
+    ...pickForType('mcq', config.numMC),
+    ...pickForType('true-false', config.numTF),
+    ...pickForType('short-answer', config.numSA)
   ];
 
   return questions.map(q => {
@@ -135,25 +178,30 @@ export function generateFreeExam(config: ExamConfig): Question[] {
 
 export function calculateScore(questions: Question[], answers: Record<number, any>, config: ExamConfig): number {
   let score = 0;
+  
+  const mcqScorePer = config.numMC > 0 ? config.scoreMC / config.numMC : 0;
+  const tfScorePer = config.numTF > 0 ? config.scoreTF / config.numTF : 0;
+  const saScorePer = config.numSA > 0 ? config.scoreSA / config.numSA : 0;
+
   questions.forEach(q => {
     const ans = answers[q.id];
     if (ans === undefined) return;
 
-    if (q.type === 'mcq' && config.numMC > 0) {
-      if (q.o?.[ans] === q.a) score += config.scoreMC / config.numMC;
-    } else if (q.type === 'true-false' && config.numTF > 0) {
-      let correctParts = 0;
-      q.s?.forEach((s, i) => { if (ans[i] === s.a) correctParts++; });
-      const base = config.scoreTF / config.numTF;
-      if (correctParts === 1) score += base * 0.1;
-      else if (correctParts === 2) score += base * 0.25;
-      else if (correctParts === 3) score += base * 0.5;
-      else if (correctParts === 4) score += base * 1.0;
-    } else if (q.type === 'short-answer' && config.numSA > 0) {
+    if (q.type === 'mcq') {
+      if (q.o?.[ans] === q.a) score += mcqScorePer;
+    } else if (q.type === 'true-false') {
+      let correct = 0;
+      q.s?.forEach((s, i) => { if (ans[i] === s.a) correct++; });
+      if (correct === 1) score += tfScorePer * 0.1;
+      else if (correct === 2) score += tfScorePer * 0.25;
+      else if (correct === 3) score += tfScorePer * 0.5;
+      else if (correct === 4) score += tfScorePer * 1.0;
+    } else if (q.type === 'short-answer') {
       if (String(ans).trim().toLowerCase() === String(q.a).trim().toLowerCase()) {
-        score += config.scoreSA / config.numSA;
+        score += saScorePer;
       }
     }
   });
+
   return Math.round(score * 100) / 100;
 }

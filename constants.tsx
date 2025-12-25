@@ -1,18 +1,13 @@
 
 import { Topic, ExamCodeDefinition } from './types';
+
 export const GRADES = [9, 10, 11, 12];
 
-// 1. LINK MẶC ĐỊNH (Dùng khi không tìm thấy ID)
-export const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbyymWWWpZ1JgAorl34w8TIdTE1_lHK7VcJ0PzXCY-au44EAY_OfZuOHfLeN4uYHFKCR/exec"; 
+export const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbzPin0LbYlG0pTrhnmArHT43nVBIjdH5YXqjsjjyXcT4oPltRDCkoP5TNlKdbFsSPk1/exec";
 
-// 2. CẤU HÌNH ĐA LUỒNG (QUAN TRỌNG): Mapping ID -> Link Web App riêng
-// Bạn điền ID bản quyền vào bên trái, Link Web App GAS tương ứng vào bên phải
 export const API_ROUTING: Record<string, string> = {
   "Test12345678": "https://script.google.com/macros/s/AKfycbyymWWWpZ1JgAorl34w8TIdTE1_lHK7VcJ0PzXCY-au44EAY_OfZuOHfLeN4uYHFKCR/exec",
   "GV_NAM_HANOI": "https://script.google.com/macros/s/AKfycbwd...khac.../exec",
-  // Thêm các giáo viên khác vào đây...
-};
-
 export const REGISTER_LINKS = {
   MATH: "https://admintoanhoc.vercel.app/", 
   APP: "https://forms.gle/wQfqisy2TzFRMzsu6"
@@ -52,10 +47,9 @@ export const EXAM_CODES: Record<number, ExamCodeDefinition[]> = {
   ],
   12: [
     { code: "K12-TU-DO", name: "Luyện tập tự do khối 12", topics: 'manual' },
-    { code: "KT12-GKII", name: "Kiểm tra Giữa kì II - Ma trận", topics: 'matrix' },
-    { code: "KT12-45P", name: "Kiểm tra 45p - Chương 4", topics: 'matrix' }
+    { code: "KT12-45P", name: "Kiểm tra 45p - Chương 4", topics: 'matrix' },
+    { code: "KT12-GKII", name: "Kiểm tra Giữa kì II - Ma trận", topics: 'matrix' }
   ]
 };
 
-export const CLASSES_LIST = ["Tự do", "12A1", "12A2", "11B1", "10C1"];
 export const MAX_VIOLATIONS = 3;

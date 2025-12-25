@@ -1,4 +1,5 @@
 
+// Add Language type definition to fix missing export errors
 export type Language = 'javascript' | 'typescript' | 'python' | 'html' | 'css' | 'sql' | 'cpp';
 
 export interface Question {
@@ -23,7 +24,7 @@ export interface ExamConfig {
   scoreTF: number;
   numSA: number;
   scoreSA: number;
-  isFree?: boolean; // Thi tự do
+  isFree?: boolean;
 }
 
 export interface ExamCodeDefinition {
@@ -41,7 +42,8 @@ export interface StudentInfo {
   account: string;
   isLoggedIn?: boolean;
   isVerified?: boolean;
-  limitTab: number;
+  limit: number;      // Exam attempt limit
+  limitTab: number;   // Tab switch limit
 }
 
 export interface ExamState {
