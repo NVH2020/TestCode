@@ -2,131 +2,161 @@
 import { Question, ExamConfig } from '../types';
 import { ALL_QUESTIONS } from '../data/questions';
 
-/**
- * Trộn mảng ngẫu nhiên
- */
-function shuffle<T>(array: T[]): T[] {
-  return [...array].sort(() => Math.random() - 0.5);
+export interface MatrixConfig {
+  mcq: string;  
+  tf: string;
+  short: string;
+  thoigian: number;
 }
 
-/**
- * Trích xuất mức độ từ classTag (số cuối cùng)
- */
+function shuffleArray<T>(array: T[]): T[] {
+  const newArr = [...array];
+  for (let i = newArr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+  }
+  return newArr;
+}
+
 function getLevel(q: Question): number {
   const parts = q.classTag.split('.');
   return Number(parts[parts.length - 1]) || 1;
 }
 
 /**
- * Trộn các phương án của một câu hỏi cụ thể
+ * Phân tích chuỗi ma trận: "Điểm; (G,T,L1,L2,L3,L4), ..."
  */
-function shuffleQuestionContent(q: Question): Question {
-  const newQ = { ...q };
-  
-  if (q.type === 'mcq' && q.o) {
-    newQ.o = shuffle(q.o);
-  } else if (q.type === 'true-false' && q.s) {
-    newQ.s = shuffle(q.s);
+function parseSection(str: string) {
+  if (!str || !str.includes(';')) return { scorePerItem: 0, rules: [], totalCount: 0 };
+  const [scorePart, rulesPart] = str.split(';');
+  const scorePerItem = parseFloat(scorePart.trim());
+  const rules: any[] = [];
+  const matches = rulesPart.matchAll(/\(([^)]+)\)/g);
+  let totalCount = 0;
+
+  for (const match of matches) {
+    const p = match[1].split(',').map(v => parseInt(v.trim()));
+    const rule = { g: p[0], t: p[1], l1: p[2] || 0, l2: p[3] || 0, l3: p[4] || 0, l4: p[5] || 0 };
+    rules.push(rule);
+    totalCount += (rule.l1 + rule.l2 + rule.l3 + rule.l4);
   }
-  
-  return newQ;
+  return { scorePerItem, rules, totalCount };
 }
 
-/**
- * Lấy danh sách câu hỏi theo mức độ cho từng phần
- */
-function pickByLevel(pool: Question[], total: number, l3Count: number, l4Count: number): Question[] {
-  if (total <= 0) return [];
+export function generateExamFromMatrix(matrix: MatrixConfig): { questions: Question[], config: ExamConfig } {
+  const mcq = parseSection(matrix.mcq);
+  const tf = parseSection(matrix.tf);
+  const sa = parseSection(matrix.short);
 
-  // Lấy các câu mức 4 và mức 3 trước
-  const level4s = shuffle(pool.filter(q => getLevel(q) === 4)).slice(0, l4Count);
-  const level3s = shuffle(pool.filter(q => getLevel(q) === 3)).slice(0, l3Count);
-  
-  const remainingCount = total - level4s.length - level3s.length;
-  if (remainingCount <= 0) return shuffle([...level4s, ...level3s].slice(0, total));
+  let finalQuestions: Question[] = [];
 
-  // Các câu còn lại lấy từ mức 1 và 2 với tỉ lệ ~60/40 (Mức 1 chiếm 60%)
-  const level1s = pool.filter(q => getLevel(q) === 1);
-  const level2s = pool.filter(q => getLevel(q) === 2);
-  
-  const targetL1 = Math.ceil(remainingCount * 0.6);
-  const targetL2 = remainingCount - targetL1;
+  const process = (rules: any[], type: string) => {
+    rules.forEach(r => {
+      const pool = ALL_QUESTIONS.filter(q => {
+        const p = q.classTag.split('.');
+        return q.type === type && Number(p[0]) === r.g && Number(p[1]) === r.t;
+      });
 
-  const pickedL1 = shuffle(level1s).slice(0, targetL1);
-  const pickedL2 = shuffle(level2s).slice(0, targetL2);
+      const pools = [
+        shuffleArray(pool.filter(q => getLevel(q) === 1)),
+        shuffleArray(pool.filter(q => getLevel(q) === 2)),
+        shuffleArray(pool.filter(q => getLevel(q) === 3)),
+        shuffleArray(pool.filter(q => getLevel(q) === 4))
+      ];
 
-  let result = [...level4s, ...level3s, ...pickedL1, ...pickedL2];
+      const targets = [r.l1, r.l2, r.l3, r.l4];
+      
+      // Logic bù trừ: Lấy từ mức cao nhất xuống, nếu thiếu lấy từ mức thấp hơn
+      for (let i = 3; i >= 0; i--) {
+        let needed = targets[i];
+        const picked = pools[i].splice(0, needed);
+        finalQuestions.push(...picked);
+        needed -= picked.length;
+        
+        // Nếu thiếu, dồn sang mức thấp hơn 1 bậc
+        if (needed > 0 && i > 0) {
+          targets[i-1] += needed;
+        }
+      }
+    });
+  };
 
-  // Nếu vẫn thiếu (do ngân hàng không đủ câu ở mức mong muốn), lấy bù từ các mức khác
-  if (result.length < total) {
-    const idsAlreadyPicked = new Set(result.map(r => r.id));
-    const leftovers = shuffle(pool.filter(p => !idsAlreadyPicked.has(p.id)));
-    result = [...result, ...leftovers.slice(0, total - result.length)];
-  }
+  process(mcq.rules, 'mcq');
+  process(tf.rules, 'true-false');
+  process(sa.rules, 'short-answer');
 
-  return shuffle(result);
-}
-
-export function generateExam(config: ExamConfig): Question[] {
-  const { grade, topics } = config;
-  
-  // Lọc ngân hàng theo khối và chuyên đề (Dựa trên classTag "Khối.ChuyênĐề.MứcĐộ")
-  const basePool = ALL_QUESTIONS.filter(q => {
-    const parts = q.classTag.split('.');
-    const qGrade = Number(parts[0]);
-    const qTopic = Number(parts[1]);
-    return qGrade === grade && topics.includes(qTopic);
+  // Trộn đáp án MCQ
+  finalQuestions = finalQuestions.map(q => {
+    if (q.type === 'mcq' && q.o) return { ...q, o: shuffleArray([...q.o]) };
+    return q;
   });
 
-  // Chia pool theo loại câu hỏi
-  const mcPool = basePool.filter(q => q.type === 'mcq');
-  const tfPool = basePool.filter(q => q.type === 'true-false');
-  const saPool = basePool.filter(q => q.type === 'short-answer');
+  return {
+    questions: finalQuestions,
+    config: {
+      grade: 0, topics: [], duration: matrix.thoigian || 45,
+      numMC: mcq.totalCount, scoreMC: mcq.totalCount * mcq.scorePerItem,
+      numTF: tf.totalCount, scoreTF: tf.totalCount * tf.scorePerItem,
+      numSA: sa.totalCount, scoreSA: sa.totalCount * sa.scorePerItem
+    }
+  };
+}
 
-  // Lấy câu hỏi theo cấu hình mức độ
-  const mcQuestions = pickByLevel(mcPool, config.numMC, config.mcL3, config.mcL4);
-  const tfQuestions = pickByLevel(tfPool, config.numTF, config.tfL3, config.tfL4);
-  const saQuestions = pickByLevel(saPool, config.numSA, config.saL3, config.saL4);
+export function generateFreeExam(config: ExamConfig): Question[] {
+  let questions: Question[] = [];
 
-  // Trộn phương án trả lời và trả về danh sách cuối cùng
-  return [
-    ...mcQuestions.map(shuffleQuestionContent),
-    ...tfQuestions.map(shuffleQuestionContent),
-    ...saQuestions.map(shuffleQuestionContent)
-  ];
+  const pick = (type: string, total: number) => {
+    const pool = ALL_QUESTIONS.filter(q => {
+      const p = q.classTag.split('.');
+      return q.type === type && Number(p[0]) === config.grade && config.topics.includes(Number(p[1]));
+    });
+
+    const n34 = Math.round(total * 0.3);
+    const n12 = total - n34;
+
+    const pool34 = shuffleArray(pool.filter(q => getLevel(q) >= 3));
+    const pool12 = shuffleArray(pool.filter(q => getLevel(q) <= 2));
+
+    const picked34 = pool34.splice(0, n34);
+    const picked12 = pool12.splice(0, n12 + (n34 - picked34.length));
+    
+    let result = [...picked34, ...picked12];
+    if (result.length < total) {
+      const remain = shuffleArray(pool.filter(q => !result.includes(q))).splice(0, total - result.length);
+      result = [...result, ...remain];
+    }
+    return result;
+  };
+
+  questions = [...pick('mcq', config.numMC), ...pick('true-false', config.numTF), ...pick('short-answer', config.numSA)];
+  
+  return questions.map(q => {
+    if (q.type === 'mcq' && q.o) return { ...q, o: shuffleArray([...q.o]) };
+    return q;
+  });
 }
 
 export function calculateScore(questions: Question[], answers: Record<number, any>, config: ExamConfig): number {
-  let totalScore = 0;
+  let score = 0;
+  const mcPer = config.numMC > 0 ? config.scoreMC / config.numMC : 0;
+  const tfPer = config.numTF > 0 ? config.scoreTF / config.numTF : 0;
+  const saPer = config.numSA > 0 ? config.scoreSA / config.numSA : 0;
 
   questions.forEach(q => {
-    const answer = answers[q.id];
-    if (answer === undefined) return;
-
-    if (q.type === 'mcq' && config.numMC > 0) {
-      const selectedOptionText = q.o?.[answer];
-      if (selectedOptionText === q.a) {
-        totalScore += config.scoreMC / config.numMC;
-      }
-    } else if (q.type === 'true-false' && config.numTF > 0) {
-      const subItems = q.s || [];
-      const userAnswers = answer as boolean[];
-      let correctCount = 0;
-      for (let i = 0; i < subItems.length; i++) {
-        if (userAnswers[i] === subItems[i].a) correctCount++;
-      }
-      
-      const itemScore = config.scoreTF / config.numTF;
-      if (correctCount === 1) totalScore += itemScore * 0.1;
-      else if (correctCount === 2) totalScore += itemScore * 0.25;
-      else if (correctCount === 3) totalScore += itemScore * 0.5;
-      else if (correctCount === 4) totalScore += itemScore * 1.0;
-    } else if (q.type === 'short-answer' && config.numSA > 0) {
-      if (String(answer).trim().toLowerCase() === String(q.a).trim().toLowerCase()) {
-        totalScore += config.scoreSA / config.numSA;
-      }
+    const ans = answers[q.id];
+    if (ans === undefined) return;
+    if (q.type === 'mcq') {
+      if (q.o?.[ans] === q.a) score += mcPer;
+    } else if (q.type === 'true-false') {
+      let correct = 0;
+      q.s?.forEach((s, i) => { if (ans[i] === s.a) correct++; });
+      if (correct === 1) score += tfPer * 0.1;
+      else if (correct === 2) score += tfPer * 0.25;
+      else if (correct === 3) score += tfPer * 0.5;
+      else if (correct === 4) score += tfPer * 1.0;
+    } else if (q.type === 'short-answer') {
+      if (String(ans).trim().toLowerCase() === String(q.a).trim().toLowerCase()) score += saPer;
     }
   });
-
-  return Math.round(totalScore * 100) / 100;
+  return Math.round(score * 100) / 100;
 }
