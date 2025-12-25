@@ -50,18 +50,14 @@ export interface ExamCodeDefinition {
     saL4?: number;
   };
 }
-
 export interface StudentInfo {
   fullName: string;
   studentClass: string;
   idNumber: string;
   examCode: string;
   phoneNumber: string;
-  isVerified: boolean;
-  isLoggedIn?: boolean;
-  limitTab?: number;
+  isVerified: boolean; // Chắc chắn không có dấu ?
 }
-
 export interface ExamState {
   currentQuestionIndex: number;
   answers: Record<number, any>;
