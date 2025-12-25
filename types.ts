@@ -1,4 +1,7 @@
 
+// Fix: Added Language type to resolve import errors in Sidebar and geminiService
+export type Language = 'javascript' | 'typescript' | 'python' | 'html' | 'css' | 'sql' | 'cpp';
+
 export interface Question {
   id: number;
   classTag: string; // "Grade.Topic.Level" ví dụ "12.4.1" (số cuối là mức độ)

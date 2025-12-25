@@ -4,15 +4,18 @@ import {
   Question, ExamConfig, StudentInfo, ExamState, ExamCodeDefinition, SheetResult 
 } from './types.ts';
 import { 
-  GRADES, TOPICS_DATA, CLASSES_LIST, MAX_VIOLATIONS, EXAM_CODES, DEFAULT_API_URL, API_ROUTING 
+  GRADES, TOPICS_DATA, CLASSES_LIST, MAX_VIOLATIONS, EXAM_CODES, DEFAULT_API_URL, API_ROUTING, REGISTER_LINKS 
 } from './constants.tsx';
 import { generateExam, calculateScore } from './services/examEngine.ts';
 import MathText from './components/MathText.tsx';
 
 const App: React.FC = () => {
-  const [step, setStep] = useState<'entry' | 'info_setup' | 'exam' | 'result'>('entry');
+  const [step, setStep] = useState<'entry' | 'auth' | 'info_setup' | 'exam' | 'result' | 'review'>('entry');
   const [loading, setLoading] = useState(false);
-  
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authForm, setAuthForm] = useState({ username: '', password: '', confirmPassword: '' });
+  const [currentUser, setCurrentUser] = useState<string | null>(localStorage.getItem('tc_user'));
+
   const [config, setConfig] = useState<ExamConfig>({
     grade: 10,
     topics: [],
@@ -37,6 +40,31 @@ const App: React.FC = () => {
   const activeApiUrl = API_ROUTING[student.phoneNumber] || DEFAULT_API_URL;
   const currentCodeDef = EXAM_CODES[config.grade].find(c => c.code === student.examCode);
   const isFixedExam = currentCodeDef && currentCodeDef.topics !== 'manual';
+
+  const handleAuth = () => {
+    if (!authForm.username || !authForm.password) { alert("Vui lòng điền đầy đủ!"); return; }
+    
+    if (authMode === 'register') {
+      if (authForm.password !== authForm.confirmPassword) { alert("Mật khẩu không khớp!"); return; }
+      localStorage.setItem(`tc_account_${authForm.username}`, authForm.password);
+      alert("Đăng ký thành công!");
+      setAuthMode('login');
+    } else {
+      const savedPass = localStorage.getItem(`tc_account_${authForm.username}`);
+      if (savedPass === authForm.password) {
+        localStorage.setItem('tc_user', authForm.username);
+        setCurrentUser(authForm.username);
+        setStep('entry');
+      } else {
+        alert("Sai tài khoản hoặc mật khẩu!");
+      }
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('tc_user');
+    setCurrentUser(null);
+  };
 
   const handleViewScoreRedirect = () => {
     const cleanPhone = teacherPhoneForScore.trim();
@@ -102,7 +130,7 @@ const App: React.FC = () => {
       setStudent(prev => ({ ...prev, isVerified: false, idNumber: '' }));
     } else {
       setConfig(prev => ({ ...prev, topics: [], mcL3: 0, mcL4: 0, tfL3: 0, tfL4: 0, saL3: 0, saL4: 0 }));
-      setStudent(prev => ({ ...prev, isVerified: true, idNumber: 'Tự do', fullName: 'Thí sinh tự do' }));
+      setStudent(prev => ({ ...prev, isVerified: true, idNumber: 'Tự do', fullName: currentUser || 'Thí sinh tự do' }));
     }
     setStep('info_setup');
   };
@@ -133,10 +161,22 @@ const App: React.FC = () => {
   const renderEntry = () => (
     <div className="max-w-4xl mx-auto p-6 space-y-8 pt-10 animate-fadeIn">
       <header className="text-center space-y-4">
-        <h1 className="text-3xl font-black text-teal-600 uppercase tracking-[0.2em] leading-tight">Tạo Đề Kiểm Tra Từ Ngân Hàng</h1>
+        <h1 className="text-3xl font-black text-teal-600 uppercase tracking-[0.2em] leading-tight">Testcode Online</h1>
         <p className="text-slate-500 font-bold text-sm tracking-wide">Tác giả: Nguyễn Văn Hà - THPT Yên Dũng số 2 - Bắc Ninh</p>
-        <button onClick={() => setShowScoreModal(true)} className="px-10 py-4 bg-white border-2 border-teal-600 text-teal-700 rounded-full font-black shadow-xl hover:bg-teal-50 transition-colors uppercase text-xs tracking-widest">XEM ĐIỂM</button>
+        
+        {/* Hàng 4 nút mới */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4">
+          <a href={REGISTER_LINKS.MATH} target="_blank" className="px-4 py-3 bg-blue-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-blue-700 transition-all shadow-md flex items-center justify-center text-center leading-tight">Đăng ký học Toán</a>
+          <a href={REGISTER_LINKS.APP} target="_blank" className="px-4 py-3 bg-amber-500 text-white rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-amber-600 transition-all shadow-md flex items-center justify-center text-center leading-tight">Đăng ký dùng App</a>
+          <button onClick={() => setShowScoreModal(true)} className="px-4 py-3 bg-teal-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-teal-700 transition-all shadow-md">Xem Điểm</button>
+          {currentUser ? (
+            <button onClick={handleLogout} className="px-4 py-3 bg-slate-800 text-white rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-slate-900 transition-all shadow-md overflow-hidden text-ellipsis whitespace-nowrap">👤 {currentUser}</button>
+          ) : (
+            <button onClick={() => setStep('auth')} className="px-4 py-3 bg-slate-800 text-white rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-slate-900 transition-all shadow-md">Đăng Nhập</button>
+          )}
+        </div>
       </header>
+
       <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl border space-y-10">
         <div className="space-y-4">
           <label className="text-xl font-black text-slate-700 flex items-center gap-2"><span className="w-2 h-7 bg-teal-500 rounded-full"></span>Khối lớp</label>
@@ -148,7 +188,7 @@ const App: React.FC = () => {
           </div>
         </div>
         <div className="space-y-4">
-          <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Mã đề mặc định (Phân hóa M3, M4)</label>
+          <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Mã đề mặc định</label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {EXAM_CODES[config.grade].map(def => (
               <button key={def.code} onClick={() => setStudent({...student, examCode: def.code})}
@@ -164,9 +204,82 @@ const App: React.FC = () => {
     </div>
   );
 
+  const renderAuth = () => (
+    <div className="max-w-md mx-auto p-6 pt-20 animate-fadeIn">
+      <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border space-y-8">
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-black text-teal-600 uppercase tracking-widest">{authMode === 'login' ? 'Đăng Nhập' : 'Tạo Tài Khoản'}</h2>
+          <p className="text-slate-400 text-sm font-bold">Truy cập hệ thống Testcode</p>
+        </div>
+
+        <div className="space-y-4">
+          <input type="text" placeholder="Tên đăng nhập" value={authForm.username} onChange={e => setAuthForm({...authForm, username: e.target.value})} className="w-full p-4 rounded-xl border-2 outline-none focus:border-teal-500 font-bold" />
+          <input type="password" placeholder="Mật khẩu" value={authForm.password} onChange={e => setAuthForm({...authForm, password: e.target.value})} className="w-full p-4 rounded-xl border-2 outline-none focus:border-teal-500 font-bold" />
+          {authMode === 'register' && (
+            <input type="password" placeholder="Xác nhận mật khẩu" value={authForm.confirmPassword} onChange={e => setAuthForm({...authForm, confirmPassword: e.target.value})} className="w-full p-4 rounded-xl border-2 outline-none focus:border-teal-500 font-bold" />
+          )}
+        </div>
+
+        <button onClick={handleAuth} className="w-full py-4 bg-teal-600 text-white rounded-xl font-black uppercase tracking-widest shadow-lg hover:bg-teal-700 transition-all">
+          {authMode === 'login' ? 'Đăng Nhập' : 'Đăng Ký'}
+        </button>
+
+        <div className="text-center">
+          <button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="text-sm font-bold text-slate-500 hover:text-teal-600">
+            {authMode === 'login' ? 'Chưa có tài khoản? Đăng ký ngay' : 'Đã có tài khoản? Đăng nhập'}
+          </button>
+        </div>
+        
+        <button onClick={() => setStep('entry')} className="w-full text-slate-400 font-bold text-xs uppercase tracking-widest">Hủy bỏ</button>
+      </div>
+    </div>
+  );
+
+  const renderReview = () => (
+    <div className="max-w-4xl mx-auto p-6 space-y-6 animate-fadeIn pb-20">
+      <header className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-md border sticky top-4 z-20">
+        <h2 className="text-xl font-black text-teal-600 uppercase tracking-widest">Xem lại bài thi</h2>
+        <button onClick={() => setStep('entry')} className="px-6 py-2 bg-slate-800 text-white rounded-xl font-bold uppercase text-xs">Về trang chủ</button>
+      </header>
+
+      <div className="space-y-6">
+        {questions.map((q, idx) => {
+          const userAns = examState.answers[q.id];
+          return (
+            <div key={q.id} className="bg-white p-8 rounded-[2rem] shadow-lg border space-y-4">
+              <div className="flex justify-between items-start">
+                <span className="bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-teal-100">Câu {idx + 1} - ID: {q.id}</span>
+              </div>
+              <MathText content={q.question} className="text-lg font-bold text-slate-800" />
+              
+              <div className="grid gap-4 mt-6">
+                <div className="p-4 bg-teal-50 rounded-xl border border-teal-100">
+                  <div className="text-[10px] font-black text-teal-600 uppercase mb-2">Đáp án hệ thống:</div>
+                  <div className="font-bold text-teal-900">
+                    {q.type === 'mcq' ? <MathText content={q.a || ""} /> : 
+                     q.type === 'true-false' ? q.s?.map((s,i) => ` (${i+1}) ${s.a ? 'Đúng' : 'Sai'}`).join(' ') : 
+                     q.a}
+                  </div>
+                </div>
+                <div className={`p-4 rounded-xl border ${userAns === undefined ? 'bg-slate-50 border-slate-200' : 'bg-blue-50 border-blue-100'}`}>
+                  <div className="text-[10px] font-black text-slate-400 uppercase mb-2">Bạn đã chọn:</div>
+                  <div className="font-bold text-slate-700">
+                    {userAns === undefined ? "Bỏ trống" : 
+                     (q.type === 'mcq' ? <MathText content={q.o?.[userAns] || ""} /> : 
+                      q.type === 'true-false' ? userAns.map((a: boolean, i: number) => ` (${i+1}) ${a ? 'Đúng' : 'Sai'}`).join(' ') : 
+                      userAns)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   const renderInfoSetup = () => (
     <div className="max-w-6xl mx-auto p-6 space-y-6 animate-fadeIn">
-      {/* Nút Quay Lại */}
       <button 
         onClick={() => setStep('entry')} 
         className="flex items-center gap-2 text-slate-500 font-black uppercase tracking-widest text-[10px] hover:text-teal-600 transition-colors bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-100 w-fit"
@@ -208,16 +321,16 @@ const App: React.FC = () => {
           <h2 className="text-xl font-black text-slate-800 flex items-center gap-2"><span className="w-1.5 h-6 bg-teal-500 rounded-full"></span>Cấu hình đề: {student.examCode}</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-100">
              <div className="space-y-1">
-                <div className="text-[10px] font-black text-teal-600 uppercase tracking-tighter">Phần I (Trắc nghiệm)</div>
-                <div className="text-xs font-bold text-slate-500">{config.numMC} câu ({config.mcL3}M3, {config.mcL4}M4)</div>
+                <div className="text-[10px] font-black text-teal-600 uppercase tracking-tighter">Phần I</div>
+                <div className="text-xs font-bold text-slate-500">{config.numMC} câu MCQ</div>
              </div>
              <div className="space-y-1">
-                <div className="text-[10px] font-black text-teal-600 uppercase tracking-tighter">Phần II (Đúng sai)</div>
-                <div className="text-xs font-bold text-slate-500">{config.numTF} câu ({config.tfL3}M3, {config.tfL4}M4)</div>
+                <div className="text-[10px] font-black text-teal-600 uppercase tracking-tighter">Phần II</div>
+                <div className="text-xs font-bold text-slate-500">{config.numTF} câu Đúng Sai</div>
              </div>
              <div className="space-y-1">
-                <div className="text-[10px] font-black text-teal-600 uppercase tracking-tighter">Phần III (Trả lời ngắn)</div>
-                <div className="text-xs font-bold text-slate-500">{config.numSA} câu ({config.saL3}M3, {config.saL4}M4)</div>
+                <div className="text-[10px] font-black text-teal-600 uppercase tracking-tighter">Phần III</div>
+                <div className="text-xs font-bold text-slate-500">{config.numSA} câu Trả lời ngắn</div>
              </div>
           </div>
           <div className="space-y-2">
@@ -289,7 +402,7 @@ const App: React.FC = () => {
             )}
             {q.type === 'short-answer' && (
               <div className="text-center space-y-4">
-                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Nhập đáp án của bạn (Dùng dấu chấm nhé, ví dụ: 6.12):</label>
+                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Nhập đáp án của bạn:</label>
                  <input type="text" value={examState.answers[q.id] || ''} onChange={e => setExamState(p => ({...p, answers: {...p.answers, [q.id]: e.target.value}}))}
                    className="w-full max-w-md p-8 rounded-[2rem] border-4 text-center text-5xl font-black text-teal-700 outline-none focus:border-teal-500 shadow-inner bg-slate-50 placeholder-slate-200" placeholder="..." />
               </div>
@@ -313,20 +426,6 @@ const App: React.FC = () => {
   const renderResult = () => {
     const score = calculateScore(questions, examState.answers, config);
     
-    const ResultButton = ({ label, href, iconColor = "text-teal-600" }: { label: string, href?: string, iconColor?: string }) => (
-      <button 
-        onClick={() => href && window.open(href, '_blank')}
-        className="w-full py-5 bg-white border-2 border-slate-100 rounded-2xl font-black text-slate-700 flex items-center justify-center gap-3 shadow-md hover:border-teal-500 hover:text-teal-700 transition-all active:scale-95 group"
-      >
-        <div className={`w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center group-hover:bg-teal-100 transition-colors shadow-inner`}>
-          <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${iconColor}`} viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
-        </div>
-        <span className="uppercase tracking-widest text-sm">{label}</span>
-      </button>
-    );
-
     return (
       <div className="max-w-2xl mx-auto p-6 pt-16 animate-fadeIn pb-20">
         <div className="bg-white rounded-[3.5rem] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.1)] overflow-hidden border border-slate-50">
@@ -347,16 +446,21 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-3">
-              <ResultButton label="Đăng ký học Toán" href="https://admintoanhoc.vercel.app/" />
-              <ResultButton label="Đăng ký sử dụng App" href="https://docs.google.com/forms/d/e/1FAIpQLSc0WnpsymYVfZ95SE9LOo_8A5QZJPAfbaLufXvKYfq5LOFgiw/viewform" />
+            <div className="space-y-4">
               <button 
-                onClick={() => window.location.reload()} 
-                className="w-full py-6 bg-teal-600 text-white rounded-3xl font-black text-xl uppercase shadow-2xl shadow-teal-100 hover:bg-teal-700 transition-all active:scale-95 flex items-center justify-center gap-3"
+                onClick={() => setStep('review')} 
+                className="w-full py-6 bg-teal-600 text-white rounded-3xl font-black text-xl uppercase shadow-2xl hover:bg-teal-700 transition-all active:scale-95 flex items-center justify-center gap-3"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                 </svg>
+                Xem bài thi
+              </button>
+              
+              <button 
+                onClick={() => window.location.reload()} 
+                className="w-full py-5 bg-slate-100 text-slate-500 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-200 transition-all"
+              >
                 Về trang chủ
               </button>
             </div>
@@ -369,9 +473,11 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 selection:bg-teal-200">
       {step === 'entry' && renderEntry()}
+      {step === 'auth' && renderAuth()}
       {step === 'info_setup' && renderInfoSetup()}
       {step === 'exam' && renderExam()}
       {step === 'result' && renderResult()}
+      {step === 'review' && renderReview()}
       {showScoreModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-md shadow-[0_0_100px_rgba(0,0,0,0.1)] relative border border-slate-50">
@@ -384,9 +490,9 @@ const App: React.FC = () => {
                   </svg>
                </div>
                <h3 className="text-2xl font-black text-slate-800 uppercase tracking-widest">Tra cứu điểm</h3>
-               <p className="text-slate-500 font-medium">ID bản quyền</p>
+               <p className="text-slate-500 font-medium text-sm">ID bản quyền giáo viên</p>
                <input type="tel" value={teacherPhoneForScore} onChange={e => setTeacherPhoneForScore(e.target.value)}
-                 className="w-full p-6 rounded-2xl border-2 border-slate-100 mb-2 font-black text-center text-2xl outline-none focus:border-teal-500 shadow-sm" placeholder="ID bản quyền" />
+                 className="w-full p-6 rounded-2xl border-2 border-slate-100 mb-2 font-black text-center text-2xl outline-none focus:border-teal-500 shadow-sm" placeholder="Nhập ID..." />
                <button onClick={handleViewScoreRedirect} className="w-full py-5 bg-teal-600 text-white rounded-2xl font-black shadow-xl hover:bg-teal-700 transition-all uppercase tracking-widest">Truy cập dữ liệu</button>
             </div>
           </div>
