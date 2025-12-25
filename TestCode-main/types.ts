@@ -1,14 +1,16 @@
+
+// Fix: Added exported Language type used by Sidebar and geminiService
 export type Language = 'javascript' | 'typescript' | 'python' | 'html' | 'css' | 'sql' | 'cpp';
 
 export interface Question {
   id: number;
-  classTag: string;
+  classTag: string; // "Grade.Topic.Level" ví dụ "12.4.1"
   part: string;
   type: 'mcq' | 'true-false' | 'short-answer';
   question: string;
   img?: string;
   o?: string[];
-  a?: any; // Đây là ký hiệu đáp án đúng như bạn nói
+  a?: string;
   s?: { text: string; a: boolean }[];
 }
 
@@ -33,6 +35,7 @@ export interface ExamConfig {
 export interface ExamCodeDefinition {
   code: string;
   name: string;
+  // Fix: Added 'matrix' to allow matrix-based exam configurations and resolve comparison errors
   topics: number[] | 'manual' | 'matrix';
   fixedConfig?: {
     duration: number;
@@ -50,14 +53,18 @@ export interface ExamCodeDefinition {
     saL4?: number;
   };
 }
+
 export interface StudentInfo {
   fullName: string;
   studentClass: string;
   idNumber: string;
   examCode: string;
   phoneNumber: string;
-  isVerified: boolean; // Chắc chắn không có dấu ?
+  isVerified?: boolean;
+  isLoggedIn?: boolean;
+  limitTab?: number;
 }
+
 export interface ExamState {
   currentQuestionIndex: number;
   answers: Record<number, any>;
@@ -80,5 +87,5 @@ export interface SheetResult {
   sbd: string;
   tongdiem: number;
   time: string;
-  phoneNumber: string;
+  phoneNumber?: string;
 }

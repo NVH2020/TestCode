@@ -135,31 +135,7 @@ const App: React.FC = () => {
       <header className="text-center space-y-4">
         <h1 className="text-3xl font-black text-teal-600 uppercase tracking-[0.2em] leading-tight">Tạo Đề Kiểm Tra Từ Ngân Hàng</h1>
         <p className="text-slate-500 font-bold text-sm tracking-wide">Tác giả: Nguyễn Văn Hà - THPT Yên Dũng số 2 - Bắc Ninh</p>
-        <div class="menu-container">
-  <a href="https://admintoanhoc.vercel.app/" class="btn">Đăng ký học Toán</a>
-  <a href="https://docs.google.com/forms/d/e/1FAIpQLSc0WnpsymYVfZ95SE9LOo_8A5QZJPAfbaLufXvKYfq5LOFgiw/viewform?usp=send_form" class="btn">Đăng ký dùng App</a>
-  <button onclick="showTraDiem()" class="btn">Xem điểm</button>
-  <button onclick="showLogin()" class="btn">Đăng nhập</button>
-</div>
-
-<style>
-  .menu-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
-    margin-top: 20px;
-  }
-  .btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    background-color: #007bff;
-    color: white;
-    text-decoration: none;
-    cursor: pointer;
-  }
-</style>
+        <button onClick={() => setShowScoreModal(true)} className="px-10 py-4 bg-white border-2 border-teal-600 text-teal-700 rounded-full font-black shadow-xl hover:bg-teal-50 transition-colors uppercase text-xs tracking-widest">XEM ĐIỂM</button>
       </header>
       <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl border space-y-10">
         <div className="space-y-4">
