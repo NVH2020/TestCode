@@ -3,7 +3,7 @@ import { Topic, ExamCodeDefinition } from './types';
 
 export const GRADES = [9, 10, 11, 12];
 
-export const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbzPin0LbYlG0pTrhnmArHT43nVBIjdH5YXqjsjjyXcT4oPltRDCkoP5TNlKdbFsSPk1/exec";
+export const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbyymWWWpZ1JgAorl34w8TIdTE1_lHK7VcJ0PzXCY-au44EAY_OfZuOHfLeN4uYHFKCR/exec";
 
 export const API_ROUTING: Record<string, string> = {
   "Test12345678": "https://script.google.com/macros/s/AKfycbyymWWWpZ1JgAorl34w8TIdTE1_lHK7VcJ0PzXCY-au44EAY_OfZuOHfLeN4uYHFKCR/exec",
