@@ -5,11 +5,6 @@ export const GRADES = [9, 10, 11, 12];
 
 export const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbzPin0LbYlG0pTrhnmArHT43nVBIjdH5YXqjsjjyXcT4oPltRDCkoP5TNlKdbFsSPk1/exec";
 
-export const API_ROUTING: Record<string, string> = {
-  "Test12345678": "https://script.google.com/macros/s/AKfycbyymWWWpZ1JgAorl34w8TIdTE1_lHK7VcJ0PzXCY-au44EAY_OfZuOHfLeN4uYHFKCR/exec",
-  "Ha0988948882": "https://script.google.com/macros/s/AKfycbzPin0LbYlG0pTrhnmArHT43nVBIjdH5YXqjsjjyXcT4oPltRDCkoP5TNlKdbFsSPk1/exec"
-};
-
 export const REGISTER_LINKS = {
   MATH: "https://admintoanhoc.vercel.app/", 
   APP: "https://forms.gle/wQfqisy2TzFRMzsu6"
@@ -23,23 +18,11 @@ export const TOPICS_DATA: Record<number, Topic[]> = {
 };
 
 export const EXAM_CODES: Record<number, ExamCodeDefinition[]> = {
-  9: [
-    { code: "Tu_Do_K9", name: "Luyện tập tự do", topics: 'manual' },
-    { code: "KT9-15P", name: "Kiểm tra 15p", topics: 'matrix' }
-  ],
-  10: [
-    { code: "Tu_Do_K10", name: "Luyện tập tự do", topics: 'manual' },
-    { code: "KT10-45P", name: "Kiểm tra 45p", topics: 'matrix' }
-  ],
-  11: [
-    { code: "Tu_Do_K11", name: "Luyện tập tự do", topics: 'manual' },
-    { code: "KT11-45P", name: "Kiểm tra 45p", topics: 'matrix' }
-  ],
-  12: [
-    { code: "Tu_Do_K12", name: "Luyện tập tự do", topics: 'manual' },
-    { code: "KT12-45P", name: "Kiểm tra 45p", topics: 'matrix' }
-  ]
+  9: [{ code: "Tu_Do_K9", name: "Luyện tập tự do", topics: 'manual' }, { code: "KT9-15P", name: "Kiểm tra 15p", topics: 'matrix' }],
+  10: [{ code: "Tu_Do_K10", name: "Luyện tập tự do", topics: 'manual' }, { code: "KT10-45P", name: "Kiểm tra 45p", topics: 'matrix' }],
+  11: [{ code: "Tu_Do_K11", name: "Luyện tập tự do", topics: 'manual' }, { code: "KT11-45P", name: "Kiểm tra 45p", topics: 'matrix' }],
+  12: [{ code: "Tu_Do_K12", name: "Luyện tập tự do", topics: 'manual' }, { code: "KT12-45P", name: "Kiểm tra 45p", topics: 'matrix' }]
 };
 
 export const CLASSES_LIST = ["Tự do", "12A1", "12A2", "11B1", "10C1"];
-export const MAX_VIOLATIONS = 2;
+export const MAX_VIOLATIONS = 3;

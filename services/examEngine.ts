@@ -1,179 +1,160 @@
+
 import { Question, ExamConfig } from '../types';
 import { ALL_QUESTIONS } from '../data/questions';
 
-// Interface cấu hình trả về từ Sheet
 export interface MatrixConfig {
-  mcq: string;   
-  tf: string;    
-  short: string; 
-  duration: number;
-  // Các field cũ m3, m4 vẫn giữ trong type để tránh lỗi code cũ, nhưng logic sẽ bỏ qua
-  m3?: string;
-  m4?: string;
+  mcq: string;  
+  tf: string;
+  short: string;
+  thoigian: number;
 }
 
-// Biến toàn cục lưu cấu hình điểm số
-export let CURRENT_SCORING: {
-  mcq: number; 
-  short: number;
-  tf: number; 
-} = { mcq: 0, short: 0, tf: 0 };
-
-// --- HÀM BỔ TRỢ ---
-
-// Lấy level từ classTag (VD: "12.4.3" -> trả về 3)
-const getLevel = (classTag: string): number => {
-  if (!classTag) return 1;
-  const parts = classTag.split('.');
-  // Giả định format classTag luôn là: Lớp.ChuyênĐề.Level
-  // Lấy phần tử cuối cùng
-  const lv = parseInt(parts[parts.length - 1]);
-  return isNaN(lv) ? 1 : lv;
-};
-
-// Xáo trộn mảng
-function shuffle<T>(array: T[]): T[] {
+function shuffleArray<T>(array: T[]): T[] {
   return [...array].sort(() => Math.random() - 0.5);
 }
 
-// Parse header điểm số: "(4;8)" -> {points: 4, totalCount: 8, scorePerQ: 0.5}
-const parseHeader = (str: string) => {
-  const match = str.match(/\((\d+[\.,]?\d*);(\d+)\)/); 
-  if (match) {
-    const points = parseFloat(match[1]);
-    const count = parseInt(match[2]);
-    return {
-      scorePerQuestion: count > 0 ? points / count : 0
-    };
-  }
-  return null;
-};
+function getLevel(q: Question): number {
+  const parts = q.classTag.split('.');
+  return Number(parts[parts.length - 1]) || 1;
+}
 
 /**
- * HÀM CHÍNH: TẠO ĐỀ THI
+ * Phân tích x.y.z.t.u -> {grade, topic, l12, l3, l4}
  */
-export const generateExamFromMatrix = (matrix: MatrixConfig): Question[] => {
-  let examQuestions: Question[] = [];
-  
-  // Reset điểm
-  CURRENT_SCORING = { mcq: 0, short: 0, tf: 0 };
+function parseRule(ruleStr: string) {
+  const p = ruleStr.trim().split('.').map(Number);
+  return {
+    grade: p[0],
+    topic: p[1],
+    l12: p[2] || 0,
+    l3: p[3] || 0,
+    l4: p[4] || 0
+  };
+}
 
-  // Hàm xử lý chung cho cả 3 loại cột
-  const processColumn = (configStr: string, type: 'mcq' | 'true-false' | 'short-answer') => {
-    if (!configStr || configStr.trim() === "") return;
+export function generateExamFromMatrix(matrix: MatrixConfig): { questions: Question[], config: ExamConfig } {
+  const parseSection = (str: string) => {
+    if (!str) return { score: 0, count: 0, rules: [] };
+    const headerMatch = str.match(/\(([^)]+)\)/);
+    const header = headerMatch ? headerMatch[1].split(';').map(v => parseFloat(v.trim())) : [0, 0];
+    const rulePart = str.replace(/\([^)]+\)/, '').replace(/^[:;]\s*/, '');
+    const rules = rulePart.split(';').filter(i => i.trim()).map(parseRule);
+    return { score: header[0], count: header[1], rules };
+  };
 
-    // 1. Xử lý Header điểm số (4;8)
-    const meta = parseHeader(configStr);
-    if (meta) {
-      if (type === 'mcq') CURRENT_SCORING.mcq = meta.scorePerQuestion;
-      if (type === 'short-answer') CURRENT_SCORING.short = meta.scorePerQuestion;
-      if (type === 'true-false') CURRENT_SCORING.tf = meta.scorePerQuestion;
-    }
+  const mcqData = parseSection(matrix.mcq);
+  const tfData = parseSection(matrix.tf);
+  const saData = parseSection(matrix.short);
 
-    // 2. Làm sạch chuỗi config (Bỏ phần header)
-    let ruleStr = configStr.replace(/\(.*?\);?/, '').trim();
-    const rules = ruleStr.split(';').filter(r => r.trim() !== "");
+  let finalQuestions: Question[] = [];
 
-    rules.forEach(rule => {
-      // Rule mới: "12.4.3.2.1" (5 phần)
-      // Ý nghĩa: Grade.Topic.Count(Lv1,2).Count(Lv3).Count(Lv4)
-      
-      const parts = rule.trim().split('.');
-      if (parts.length < 3) return; // Tối thiểu phải có Lớp.CĐ.Slg
-
-      const targetGrade = parts[0]; // 12
-      const targetTopic = parts[1]; // 4
-      
-      // Parse số lượng cần lấy
-      const countEasy = parseInt(parts[2]) || 0; // Mức 1,2
-      const countMedium = parseInt(parts[3]) || 0; // Mức 3 (Nếu ko ghi thì là 0)
-      const countHard = parseInt(parts[4]) || 0;   // Mức 4 (Nếu ko ghi thì là 0)
-
-      // LỌC CÂU HỎI THEO LỚP & CHUYÊN ĐỀ
-      const candidates = ALL_QUESTIONS.filter(q => {
-        if (q.type !== type) return false;
-        const qParts = q.classTag.split('.');
-        // So sánh Lớp và Chuyên đề (2 phần tử đầu)
-        return qParts[0] === targetGrade && qParts[1] === targetTopic;
+  const process = (data: any, type: string) => {
+    data.rules.forEach((r: any) => {
+      const pool = ALL_QUESTIONS.filter(q => {
+        const p = q.classTag.split('.');
+        return q.type === type && Number(p[0]) === r.grade && Number(p[1]) === r.topic;
       });
 
-      // PHÂN LOẠI MỨC ĐỘ & LẤY CÂU HỎI
-      // 1. Nhóm Dễ (Level 1, 2)
-      const poolEasy = candidates.filter(q => {
-        const lv = getLevel(q.classTag);
-        return lv === 1 || lv === 2;
-      });
-      
-      // 2. Nhóm Vừa (Level 3)
-      const poolMedium = candidates.filter(q => getLevel(q.classTag) === 3);
+      const l4s = shuffleArray(pool.filter(q => getLevel(q) === 4)).slice(0, r.l4);
+      const l3s = shuffleArray(pool.filter(q => getLevel(q) === 3)).slice(0, r.l3);
+      const l12s = shuffleArray(pool.filter(q => getLevel(q) <= 2)).slice(0, r.l12);
 
-      // 3. Nhóm Khó (Level 4)
-      const poolHard = candidates.filter(q => getLevel(q.classTag) === 4);
-
-      // TRỘN VÀ LẤY
-      const selectedEasy = shuffle(poolEasy).slice(0, countEasy);
-      const selectedMedium = shuffle(poolMedium).slice(0, countMedium);
-      const selectedHard = shuffle(poolHard).slice(0, countHard);
-
-      // Log kiểm tra xem có lấy đủ ko
-      if (selectedEasy.length < countEasy) console.warn(`Thiếu câu Mức 1,2 cho ${targetGrade}.${targetTopic}`);
-      if (selectedMedium.length < countMedium) console.warn(`Thiếu câu Mức 3 cho ${targetGrade}.${targetTopic}`);
-      if (selectedHard.length < countHard) console.warn(`Thiếu câu Mức 4 cho ${targetGrade}.${targetTopic}`);
-
-      examQuestions = [...examQuestions, ...selectedEasy, ...selectedMedium, ...selectedHard];
+      finalQuestions = [...finalQuestions, ...l4s, ...l3s, ...l12s];
     });
   };
 
-  // --- THỰC THI ---
-  processColumn(matrix.mcq, 'mcq');
-  processColumn(matrix.tf, 'true-false');
-  processColumn(matrix.short, 'short-answer');
+  process(mcqData, 'mcq');
+  process(tfData, 'true-false');
+  process(saData, 'short-answer');
 
-  // Lưu ý: Ta KHÔNG gọi hàm xử lý M3, M4 riêng nữa vì nó đã được gộp vào logic trên.
+  // Trộn các phương án trắc nghiệm
+  finalQuestions = finalQuestions.map(q => {
+    if (q.type === 'mcq' && q.o) {
+      const originalOptions = [...q.o];
+      const correctText = q.a;
+      const shuffled = shuffleArray(originalOptions);
+      return { ...q, o: shuffled, a: correctText };
+    }
+    return q;
+  });
 
-  return examQuestions;
-};
+  const config: ExamConfig = {
+    grade: 0, topics: [], duration: matrix.thoigian || 45,
+    numMC: mcqData.count, scoreMC: mcqData.score,
+    numTF: tfData.count, scoreTF: tfData.score,
+    numSA: saData.count, scoreSA: saData.score
+  };
 
-/**
- * HÀM TÍNH ĐIỂM (GIỮ NGUYÊN)
- */
-export const calculateScore = (questions: Question[], answers: Record<number, any>): number => {
-    let totalScore = 0;
+  return { questions: finalQuestions, config };
+}
 
-    questions.forEach(q => {
-        const userAns = answers[q.id];
-        if (userAns === undefined || userAns === null || userAns === "") return;
+export function generateFreeExam(config: ExamConfig): Question[] {
+  let questions: Question[] = [];
 
-        // 1. MCQ
-        if (q.type === 'mcq') {
-             const cleanUser = String(userAns).charAt(0).toUpperCase();
-             const cleanCorrect = String(q.a).charAt(0).toUpperCase();
-             if (cleanUser === cleanCorrect) {
-                 totalScore += CURRENT_SCORING.mcq || 0; 
-             }
-        }
-        // 2. Short Answer
-        else if (q.type === 'short-answer') {
-            if (String(userAns).trim().toLowerCase() === String(q.a).trim().toLowerCase()) {
-                totalScore += CURRENT_SCORING.short || 0;
-            }
-        }
-        // 3. True/False
-        else if (q.type === 'true-false') {
-            let countCorrect = 0;
-            if (Array.isArray(userAns) && q.s) {
-                q.s.forEach((subQ, idx) => {
-                    if (userAns[idx] === subQ.a) countCorrect++;
-                });
-            }
-            // Điểm TF tính trên thang điểm của câu đó (VD: 1đ/câu)
-            const maxPoint = CURRENT_SCORING.tf || 0; 
-            if (countCorrect === 1) totalScore += maxPoint * 0.1;
-            if (countCorrect === 2) totalScore += maxPoint * 0.25;
-            if (countCorrect === 3) totalScore += maxPoint * 0.5;
-            if (countCorrect === 4) totalScore += maxPoint * 1.0;
-        }
-    });
+  const getPool = (type: string) => ALL_QUESTIONS.filter(q => {
+    const p = q.classTag.split('.');
+    return q.type === type && Number(p[0]) === config.grade && config.topics.includes(Number(p[1]));
+  });
 
-    return parseFloat(totalScore.toFixed(2));
-};
+  const pickForSection = (type: string, total: number) => {
+    const pool = getPool(type);
+    const n34 = Math.round(total * 0.3);
+    const n12 = total - n34;
+
+    const l34 = shuffleArray(pool.filter(q => getLevel(q) >= 3)).slice(0, n34);
+    const l12 = shuffleArray(pool.filter(q => getLevel(q) <= 2)).slice(0, n12);
+    
+    // Nếu thiếu câu mức độ cao, lấy bù ở mức độ thấp
+    if (l34.length < n34) {
+      const more = shuffleArray(pool.filter(q => getLevel(q) <= 2 && ![...l12, ...l34].includes(q))).slice(0, n34 - l34.length);
+      return [...l12, ...l34, ...more];
+    }
+
+    return [...l12, ...l34];
+  };
+
+  questions = [
+    ...pickForSection('mcq', config.numMC),
+    ...pickForSection('true-false', config.numTF),
+    ...pickForSection('short-answer', config.numSA)
+  ];
+
+  return questions.map(q => {
+    if (q.type === 'mcq' && q.o) {
+      const shuffled = shuffleArray([...q.o]);
+      return { ...q, o: shuffled };
+    }
+    return q;
+  });
+}
+
+export function calculateScore(questions: Question[], answers: Record<number, any>, config: ExamConfig): number {
+  let score = 0;
+  
+  const mcqs = questions.filter(q => q.type === 'mcq');
+  const tfs = questions.filter(q => q.type === 'true-false');
+  const sas = questions.filter(q => q.type === 'short-answer');
+
+  questions.forEach(q => {
+    const ans = answers[q.id];
+    if (ans === undefined) return;
+
+    if (q.type === 'mcq' && config.numMC > 0) {
+      if (q.o?.[ans] === q.a) score += config.scoreMC / config.numMC;
+    } else if (q.type === 'true-false' && config.numTF > 0) {
+      let correctParts = 0;
+      q.s?.forEach((s, i) => { if (ans[i] === s.a) correctParts++; });
+      const base = config.scoreTF / config.numTF;
+      if (correctParts === 1) score += base * 0.1;
+      else if (correctParts === 2) score += base * 0.25;
+      else if (correctParts === 3) score += base * 0.5;
+      else if (correctParts === 4) score += base * 1.0;
+    } else if (q.type === 'short-answer' && config.numSA > 0) {
+      if (String(ans).trim().toLowerCase() === String(q.a).trim().toLowerCase()) {
+        score += config.scoreSA / config.numSA;
+      }
+    }
+  });
+
+  return Math.round(score * 100) / 100;
+}

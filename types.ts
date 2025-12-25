@@ -1,10 +1,9 @@
 
-// Fix: Added exported Language type used by Sidebar and geminiService
 export type Language = 'javascript' | 'typescript' | 'python' | 'html' | 'css' | 'sql' | 'cpp';
 
 export interface Question {
   id: number;
-  classTag: string; // "Grade.Topic.Level" ví dụ "12.4.1"
+  classTag: string; // "Grade.Topic.Level"
   part: string;
   type: 'mcq' | 'true-false' | 'short-answer';
   question: string;
@@ -20,49 +19,29 @@ export interface ExamConfig {
   duration: number;
   numMC: number;
   scoreMC: number;
-  mcL3: number;
-  mcL4: number;
   numTF: number;
   scoreTF: number;
-  tfL3: number;
-  tfL4: number;
   numSA: number;
   scoreSA: number;
-  saL3: number;
-  saL4: number;
+  isFree?: boolean; // Thi tự do
 }
 
 export interface ExamCodeDefinition {
   code: string;
   name: string;
-  // Fix: Added 'matrix' to allow matrix-based exam configurations and resolve comparison errors
   topics: number[] | 'manual' | 'matrix';
-  fixedConfig?: {
-    duration: number;
-    numMC: number;
-    scoreMC: number;
-    mcL3?: number;
-    mcL4?: number;
-    numTF: number;
-    scoreTF: number;
-    tfL3?: number;
-    tfL4?: number;
-    numSA: number;
-    scoreSA: number;
-    saL3?: number;
-    saL4?: number;
-  };
 }
 
 export interface StudentInfo {
   fullName: string;
   studentClass: string;
   idNumber: string;
+  sbd: string;
   examCode: string;
-  phoneNumber: string;
-  isVerified?: boolean;
+  account: string;
   isLoggedIn?: boolean;
-  limitTab?: number;
+  isVerified?: boolean;
+  limitTab: number;
 }
 
 export interface ExamState {
@@ -78,14 +57,4 @@ export interface ExamState {
 export interface Topic {
   id: number;
   name: string;
-}
-
-export interface SheetResult {
-  name: string;
-  makiemtra: string;
-  class: string;
-  sbd: string;
-  tongdiem: number;
-  time: string;
-  phoneNumber?: string;
 }
