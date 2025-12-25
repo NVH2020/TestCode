@@ -1,122 +1,127 @@
+import React, { useState, useEffect } from 'react';
+import { generateMatrixExam, generateFreeExam, calculateScore } from './services/examEngine';
+import MathText from './components/MathText';
+import { DEFAULT_API_URL, API_ROUTING } from './constants'; // Import thêm API_ROUTING
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Question, ExamConfig, StudentInfo, ExamState, Topic 
-} from './types.ts';
-import { 
-  GRADES, TOPICS_DATA, CLASSES_LIST, MAX_VIOLATIONS, EXAM_CODES, DEFAULT_API_URL, REGISTER_LINKS 
-} from './constants.tsx';
-import { generateExamFromMatrix, generateFreeExam, calculateScore, MatrixConfig } from './services/examEngine.ts';
-import MathText from './components/MathText.tsx';
-
-const App: React.FC = () => {
-  const [step, setStep] = useState<'entry' | 'auth' | 'free_setup' | 'info_setup' | 'exam' | 'result' | 'review'>('entry');
+const App = () => {
+  // --- STATE ---
+  const [step, setStep] = useState<'home' | 'setup_free' | 'setup_matrix' | 'exam' | 'result' | 'review'>('home');
   const [loading, setLoading] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [activeGrade, setActiveGrade] = useState<number>(12);
-  const [selectedExamCode, setSelectedExamCode] = useState("");
+  const [activeGrade, setActiveGrade] = useState<number | null>(null);
   
-  const [authForm, setAuthForm] = useState({ account: '', pass: '', confirmPass: '' });
-  const [freeConfig, setFreeConfig] = useState<ExamConfig>({
-    grade: 12, topics: [], duration: 45, numMC: 10, scoreMC: 6, numTF: 4, scoreTF: 2, numSA: 4, scoreSA: 2
+  // User info
+  const [user, setUser] = useState({ 
+    idnumber: '', sbd: '', account: '', pass: '', name: '', class: '', limit: 99, limittab: 3 
   });
+  
+  const [freeConfig, setFreeConfig] = useState<any>({ grade: 12, topics: [], time: 45 });
+  const [matrixCode, setMatrixCode] = useState('');
 
-  const [student, setStudent] = useState<StudentInfo>({
-    fullName: '', studentClass: 'Tự do', idNumber: '', sbd: '', examCode: '', account: '', isLoggedIn: false, isVerified: false, limitTab: MAX_VIOLATIONS
-  });
+  // Exam data
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [answers, setAnswers] = useState<any>({});
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [tabViolations, setTabViolations] = useState(0);
+  const [finalScore, setFinalScore] = useState(0);
 
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [examState, setExamState] = useState<ExamState>({
-    currentQuestionIndex: 0, answers: {}, timeLeft: 0, violations: 0, isFinished: false, startTime: new Date()
-  });
-
-  const [remoteMatrix, setRemoteMatrix] = useState<MatrixConfig | null>(null);
-
-  // Tab switching surveillance
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden && step === 'exam' && !examState.isFinished) {
-        setExamState(prev => {
-          const nextV = prev.violations + 1;
-          if (nextV >= student.limitTab) {
-            alert("VI PHẠM QUY CHẾ: Bạn đã chuyển tab quá số lần quy định. Bài thi tự động kết thúc!");
-            finishExam();
-          } else {
-            alert(`CẢNH BÁO: Không được rời khỏi tab thi! (${nextV}/${student.limitTab})`);
-          }
-          return { ...prev, violations: nextV };
-        });
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [step, examState.isFinished, student.limitTab]);
-
-  // Timer logic
-  useEffect(() => {
-    let timer: any;
-    if (step === 'exam' && examState.timeLeft > 0 && !examState.isFinished) {
-      timer = setInterval(() => {
-        setExamState(prev => {
-          if (prev.timeLeft <= 1) {
-            clearInterval(timer);
-            finishExam();
-            return { ...prev, timeLeft: 0 };
-          }
-          return { ...prev, timeLeft: prev.timeLeft - 1 };
-        });
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [step, examState.timeLeft, examState.isFinished]);
-
-  const handleAuth = () => {
-    if (!authForm.account || !authForm.pass) { alert("Vui lòng điền đủ thông tin!"); return; }
-    if (authMode === 'register' && authForm.pass !== authForm.confirmPass) { alert("Mật khẩu nhập lại không khớp!"); return; }
+  // --- HÀM CHỌN API URL DỰA VÀO ID ---
+  const getApiUrl = (idNum: string) => {
+    // 1. Xóa khoảng trắng thừa
+    const cleanID = idNum ? idNum.trim() : "";
     
-    if (authMode === 'register') {
-      localStorage.setItem(`testcode_user_${authForm.account}`, authForm.pass);
-      alert("Đăng ký thành công!");
-      setAuthMode('login');
-    } else {
-      const savedPass = localStorage.getItem(`testcode_user_${authForm.account}`);
-      if (savedPass === authForm.pass) {
-        setStudent(prev => ({ ...prev, account: authForm.account, isLoggedIn: true }));
-        setStep('entry');
-        alert(`Chào mừng ${authForm.account}!`);
-      } else {
-        alert("Tài khoản hoặc mật khẩu không chính xác!");
-      }
+    // 2. Tìm trong danh sách định tuyến
+    if (API_ROUTING[cleanID]) {
+      return API_ROUTING[cleanID];
+    }
+    
+    // 3. Nếu không thấy, dùng mặc định
+    console.warn(`Không tìm thấy ID "${cleanID}" trong API_ROUTING, dùng Default URL.`);
+    return DEFAULT_API_URL;
+  };
+
+  // --- HÀM GỌI GAS (Đã sửa để dynamic URL) ---
+  const callGAS = async (params: string, body: any = null, overrideID: string = "") => {
+    // Ưu tiên dùng ID truyền vào, nếu không thì dùng ID trong state user
+    const targetID = overrideID || user.idnumber;
+    const url = getApiUrl(targetID);
+    
+    console.log(`Đang gọi API tới: ${targetID} -> ${url}`); // Debug log
+
+    const opt: any = { method: body ? 'POST' : 'GET' };
+    if (body) {
+      opt.body = JSON.stringify(body);
+      opt.headers = { 'Content-Type': 'text/plain' };
+    }
+
+    try {
+      const res = await fetch(`${url}?${params}`, opt);
+      const json = await res.json();
+      return json;
+    } catch (e) {
+      console.error("Fetch Error:", e);
+      return { status: 'error', message: 'Lỗi kết nối tới Google Sheet! Vui lòng kiểm tra mạng hoặc ID bản quyền.' };
     }
   };
 
-  const verifyMatrixIdentity = async () => {
-    if (!student.isLoggedIn) { alert("Vui lòng ĐĂNG NHẬP trước!"); setStep('auth'); return; }
-    if (!student.idNumber || !student.sbd) { alert("Vui lòng nhập ID bản quyền và Số báo danh!"); return; }
+  // --- 1. LOGIC CHECK USER ĐỂ VÀO THI ---
+  const handleStartMatrixExam = async () => {
+    // Validate đầu vào
+    if (!user.idnumber) return alert("Chưa nhập ID Bản quyền!");
+    if (!user.sbd) return alert("Chưa nhập Số Báo Danh!");
+    if (!user.account) return alert("Chưa nhập Tài khoản!");
+    if (!matrixCode) return alert("Chưa nhập Mã đề thi!");
     
     setLoading(true);
     try {
-      // 3-Layer Check: idnumber + SBD + account
-      const url = `${DEFAULT_API_URL}?action=checkSBD&sbd=${student.sbd}&idnumber=${student.idNumber}&account=${student.account}`;
-      const res = await fetch(url);
-      const data = await res.json();
+      // BƯỚC 1: Check thông tin + Limit (Truyền user.idnumber để nó chọn đúng Link Sheet)
+      // Gửi action=checkUserInfo kèm mã đề (code) để đếm số lần làm
+      const checkParams = `action=checkUserInfo&idnumber=${user.idnumber}&sbd=${user.sbd}&account=${user.account}&code=${matrixCode}`;
       
-      if (data.status === 'success') {
-        setStudent(prev => ({ 
-          ...prev, fullName: data.name, studentClass: data.class, isVerified: true, limitTab: data.limittab || MAX_VIOLATIONS 
+      const checkData = await callGAS(checkParams);
+      
+      if (checkData.status === 'success') {
+        console.log("Check User OK:", checkData);
+        
+        // Cập nhật lại thông tin chuẩn từ Sheet trả về
+        setUser(prev => ({ 
+            ...prev, 
+            name: checkData.name, 
+            class: checkData.class, 
+            limit: checkData.limit,
+            limittab: checkData.limittab
         }));
-        setRemoteMatrix(data.matrix);
-        alert(`Xác thực thành công học sinh: ${data.name}`);
+
+        // BƯỚC 2: Lấy đề thi (Sau khi check user ok)
+        // Vẫn dùng user.idnumber để gọi đúng Sheet đó lấy đề
+        const examParams = `action=getExamData&code=${matrixCode}`;
+        const examData = await callGAS(examParams);
+
+        if (examData.status === 'success') {
+           console.log("Get Exam OK:", examData);
+           const qs = generateMatrixExam(examData.matrix);
+           
+           if (qs.length === 0) {
+             alert("Lỗi: Mã đề đúng nhưng không tạo được câu hỏi. Kiểm tra file questions.ts và cấu hình Sheet!");
+           } else {
+             setQuestions(qs);
+             setTimeLeft(examData.matrix.duration * 60);
+             setTabViolations(0);
+             setStep('exam'); // CHUYỂN MÀN HÌNH VÀO THI
+           }
+        } else {
+          alert("Lỗi lấy đề: " + examData.message);
+        }
+
       } else {
-        alert(data.message || "Thông tin không khớp với GSheet! Vui lòng kiểm tra lại ID, SBD và tài khoản đăng nhập.");
+        alert("Không thể vào thi: " + checkData.message);
       }
-    } catch {
-      alert("Lỗi kết nối máy chủ xác thực. Hãy chắc chắn Apps Script đã được deploy đúng.");
+    } catch (e) {
+      console.error(e);
+      alert("Có lỗi xảy ra trong quá trình xử lý!");
     } finally {
       setLoading(false);
     }
   };
-
   const handleStartExam = () => {
     const examDef = EXAM_CODES[activeGrade].find(c => c.code === selectedExamCode);
     let qs: Question[] = [];
