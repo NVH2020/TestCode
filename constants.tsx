@@ -6,7 +6,7 @@ export const GRADES = [9, 10, 11, 12];
 export const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbzPin0LbYlG0pTrhnmArHT43nVBIjdH5YXqjsjjyXcT4oPltRDCkoP5TNlKdbFsSPk1/exec";
 
 export const API_ROUTING: Record<string, string> = {
-  "Test12345678": "https://script.google.com/macros/s/AKfycby4UzGKm1foHKV2I9YoKUQdnhPbFB4o6KRLKcTcsTf2zfYT2XG1fTz-o9tZ3hJDZ3-I/exec",
+  "Test12345678": "https://script.google.com/macros/s/AKfycbyymWWWpZ1JgAorl34w8TIdTE1_lHK7VcJ0PzXCY-au44EAY_OfZuOHfLeN4uYHFKCR/exec",
   "Ha0988948882": "https://script.google.com/macros/s/AKfycbzPin0LbYlG0pTrhnmArHT43nVBIjdH5YXqjsjjyXcT4oPltRDCkoP5TNlKdbFsSPk1/exec"
 };
 
